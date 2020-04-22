@@ -22,7 +22,10 @@ namespace FluentValidation.Tests {
 	using System.Threading.Tasks;
 	using Xunit;
 
-	
+#if NET35
+	using Task = System.Threading.Tasks.TaskEx;
+#endif
+
 	public class CollectionValidatorTests {
 		private Person person;
 		private object _lock = new object();
@@ -178,7 +181,7 @@ namespace FluentValidation.Tests {
 		}
 
 		[Fact]
-		public async Task Validates_child_validator_asynchronously() {
+		public async System.Threading.Tasks.Task Validates_child_validator_asynchronously() {
 			var validator = new ComplexValidationTester.TracksAsyncCallValidator<Person>();
 			var childValidator = new ComplexValidationTester.TracksAsyncCallValidator<Person>();
 			childValidator.RuleFor(x => x.Forename).NotNull();
@@ -189,7 +192,7 @@ namespace FluentValidation.Tests {
 		}
 	
 		[Fact]
-		public async Task Collection_async_RunsTasksSynchronously() {
+		public async System.Threading.Tasks.Task Collection_async_RunsTasksSynchronously() {
 			var result = new List<bool>();
 			var validator = new InlineValidator<Person>();
 			var orderValidator = new InlineValidator<Order>();
@@ -205,7 +208,12 @@ namespace FluentValidation.Tests {
 			await validator.ValidateAsync(person);
 
 			Assert.NotEmpty(result);
-			Assert.All(result, Assert.True);
+#if NET35
+			AssertEx
+#else
+			Assert
+#endif
+				.All(result, Assert.True);
 		}
 		
 		public class OrderValidator : AbstractValidator<Order> {

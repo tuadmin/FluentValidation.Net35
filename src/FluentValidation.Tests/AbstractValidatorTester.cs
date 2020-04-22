@@ -26,6 +26,9 @@ namespace FluentValidation.Tests {
 	using Xunit;
 	using Results;
 
+#if NET35
+	using Task = System.Threading.Tasks.TaskEx;
+#endif
 
 	public class AbstractValidatorTester {
 		TestValidator validator;
@@ -272,7 +275,7 @@ namespace FluentValidation.Tests {
 
 		[Theory]
 		[MemberData(nameof(PreValidationReturnValueTheoryData))]
-		public async Task WhenPreValidationReturnsFalse_ResultReturnToUserImmediatly_ValidateAsync(ValidationResult preValidationResult) {
+		public async System.Threading.Tasks.Task WhenPreValidationReturnsFalse_ResultReturnToUserImmediatly_ValidateAsync(ValidationResult preValidationResult) {
 			testValidatorWithPreValidate.PreValidateMethod = (context, validationResult) => {
 				foreach (ValidationFailure validationFailure in preValidationResult.Errors) {
 					validationResult.Errors.Add(validationFailure);
@@ -316,7 +319,7 @@ namespace FluentValidation.Tests {
 		}
 
 		[Fact]
-		public async Task WhenPreValidationReturnsTrue_ValidatorsGetHit_ValidateAsync() {
+		public async System.Threading.Tasks.Task WhenPreValidationReturnsTrue_ValidatorsGetHit_ValidateAsync() {
 			const string testProperty = "TestProperty";
 			const string testMessage = "Test Message";
 			testValidatorWithPreValidate.PreValidateMethod = (context, validationResult) => {

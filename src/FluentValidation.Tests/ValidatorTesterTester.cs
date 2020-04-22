@@ -26,10 +26,14 @@ namespace FluentValidation.Tests {
 	using Validators;
 	using System.Threading.Tasks;
 
+#if NET35
+	using Task = System.Threading.Tasks.TaskEx;
+#endif
 	public class ValidatorTesterTester {
 		private TestValidator validator;
 
 		public ValidatorTesterTester() {
+			CultureScope.SetDefaultCulture();
 			validator = new TestValidator();
 			validator.RuleFor(x => x.CreditCard).Must(creditCard => !string.IsNullOrEmpty(creditCard)).WhenAsync((x, cancel) => Task.Run(() => { return x.Age >= 18; }));
 			validator.RuleFor(x => x.Forename).NotNull();
@@ -533,7 +537,7 @@ namespace FluentValidation.Tests {
 				// Cannot have a street number/lot and no street name.
 				RuleFor(address => address.Street)
 					.NotNull()
-					.When(address => !string.IsNullOrWhiteSpace(address.StreetNumber))
+					.When(address => !address.StreetNumber.IsNullOrWhiteSpace())
 					.WithMessage("A street name is required when a street number has been provided. Eg. Smith Street.");
 			}
 		}

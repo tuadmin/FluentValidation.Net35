@@ -22,6 +22,9 @@ namespace FluentValidation.Validators {
 	using System.Threading.Tasks;
 	using FluentValidation.Internal;
 	using FluentValidation.Resources;
+#if NET35
+	using Task = System.Threading.Tasks.TaskEx;
+#endif
 
 	/// <summary>
 	/// Asynchronous custom validator

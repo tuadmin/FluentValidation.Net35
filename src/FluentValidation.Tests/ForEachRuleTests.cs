@@ -27,6 +27,9 @@ namespace FluentValidation.Tests {
 	using Validators;
 	using Xunit;
 
+#if NET35
+	using Task = System.Threading.Tasks.TaskEx;
+#endif
 
 	public class ForEachRuleTests {
 		private object _lock = new object();
@@ -85,7 +88,7 @@ namespace FluentValidation.Tests {
 		}
 		
 		[Fact]
-		public async Task Overrides_indexer_async() {
+		public async System.Threading.Tasks.Task Overrides_indexer_async() {
 			var validator = new TestValidator {
 				v => v.RuleForEach(x => x.NickNames)
 					.OverrideIndexer((x, collection, element, index) => {
@@ -185,7 +188,7 @@ namespace FluentValidation.Tests {
 		}
 
 		[Fact]
-		public async Task RuleForEach_async_RunsTasksSynchronously() {
+		public async System.Threading.Tasks.Task RuleForEach_async_RunsTasksSynchronously() {
 			var validator = new InlineValidator<Person>();
 			var result = new List<bool>();
 
@@ -200,7 +203,12 @@ namespace FluentValidation.Tests {
 			});
 
 			Assert.NotEmpty(result);
-			Assert.All(result, Assert.True);
+#if NET35
+			AssertEx
+#else
+			Assert
+#endif
+			.All(result, Assert.True);
 		}
 
 		[Fact]

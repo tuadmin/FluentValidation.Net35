@@ -8,8 +8,16 @@
 	using Xunit;
 	using Xunit.Abstractions;
 
-	public class AccessorCacheTests {
+	public class AccessorCacheTests
+	{		
 		private readonly ITestOutputHelper output;
+#if NET35
+		public AccessorCacheTests() :
+			this(new DebugWindowOutputHelper())
+		{
+
+		}
+#endif
 
 		public AccessorCacheTests(ITestOutputHelper output) {
 			this.output = output;

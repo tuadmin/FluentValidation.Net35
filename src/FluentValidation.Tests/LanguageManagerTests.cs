@@ -12,6 +12,7 @@
 		private ILanguageManager _languages;
 
 		public LanguageManagerTests() {
+			CultureScope.SetDefaultCulture();
 			_languages = new LanguageManager();
 		}
 
@@ -111,8 +112,19 @@
 			LanguageManager manager = (LanguageManager)_languages;
 			var languages = manager.GetSupportedLanguages();
 			var keys = manager.GetSupportedTranslationKeys();
-			
-			Assert.All(languages, l => Assert.All(keys, k => CheckParametersMatch(l, k)));
+
+#if NET35
+			AssertEx
+#else
+			Assert
+#endif
+				.All(languages, l =>
+#if NET35
+							AssertEx
+#else
+							Assert
+#endif
+				.All(keys, k => CheckParametersMatch(l, k)));
 		}
 
 		[Fact]
@@ -165,7 +177,7 @@
 			var translatedParameters = ExtractTemplateParameters(translatedMessage);
 			Assert.False(referenceParameters.Count() != translatedParameters.Count() ||
 				referenceParameters.Except(translatedParameters).Any(),
-				$"Translation for language {languageCode}, key {translationKey} has parameters {string.Join(",", translatedParameters)}, expected {string.Join(",", referenceParameters)}");
+				$"Translation for language {languageCode}, key {translationKey} has parameters {string.Join(",", translatedParameters.ToArray())}, expected {string.Join(",", referenceParameters.ToArray())}");
 		}
 
 		IEnumerable<string> ExtractTemplateParameters(string message) {

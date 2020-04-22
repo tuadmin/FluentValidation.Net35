@@ -22,6 +22,9 @@ namespace FluentValidation.Tests {
 	using Internal;
 	using Xunit;
 
+#if NET35
+	using Task = System.Threading.Tasks.TaskEx;
+#endif
 	public class RuleDependencyTests {
 		[Fact]
 		public void Invokes_dependent_rule_if_parent_rule_passes() {
@@ -102,7 +105,7 @@ namespace FluentValidation.Tests {
 		}
 
 		[Fact]
-		public async Task TestAsyncWithDependentRules_SyncEntry() {
+		public async System.Threading.Tasks.Task TestAsyncWithDependentRules_SyncEntry() {
 			var validator = new TestValidator();
 			validator.RuleFor(o => o.Forename)
 				.NotNull()
@@ -122,7 +125,7 @@ namespace FluentValidation.Tests {
 		}
 
 		[Fact]
-		public async Task TestAsyncWithDependentRules_AsyncEntry() {
+		public async System.Threading.Tasks.Task TestAsyncWithDependentRules_AsyncEntry() {
 			var validator = new TestValidator();
 			validator.RuleFor(o => o)
 				.MustAsync(async (p, ct) => await Task.FromResult(p.Forename != null))

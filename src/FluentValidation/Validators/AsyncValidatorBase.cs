@@ -23,7 +23,9 @@ namespace FluentValidation.Validators {
 	using System.Threading.Tasks;
 	using Internal;
 	using Resources;
-
+#if NET35
+	using Task = System.Threading.Tasks.TaskEx;
+#endif
 	/// <summary>
 	/// Defines a property validator that can be run asynchronously.
 	/// </summary>

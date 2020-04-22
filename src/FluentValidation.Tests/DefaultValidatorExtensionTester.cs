@@ -25,7 +25,9 @@ namespace FluentValidation.Tests {
 	using Xunit;
 	using Validators;
 
-	
+#if NET35
+	using Task = System.Threading.Tasks.TaskEx;
+#endif
 	public class DefaultValidatorExtensionTester {
 		private AbstractValidator<Person> validator;
 

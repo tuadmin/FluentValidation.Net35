@@ -34,7 +34,7 @@ namespace FluentValidation.TestHelper {
 			return string.Join(".", 
                 GetMemberNames().Concat(properties
 				.Where(x => x != null)
-				.Select(x => x.Name)));
+				.Select(x => x.Name)).ToArray());
 		}
 
 	    private IEnumerable<string> GetMemberNames() {

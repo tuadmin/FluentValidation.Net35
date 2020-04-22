@@ -34,7 +34,14 @@
 			_isAsync = true;
 			_asyncAction = asyncAction;
 			//TODO: For FV 9, throw an exception by default if async validator is being executed synchronously.
-			_action = (x, ctx) => Task.Run(() => _asyncAction(x, ctx, new CancellationToken())).GetAwaiter().GetResult();
+			_action = (x, ctx) =>
+#if NET35
+			TaskEx
+#else
+			Task
+#endif
+			.Run(() => _asyncAction(x, ctx, new CancellationToken()))			
+			.GetAwaiter().GetResult();
 		}
 
 		public override IEnumerable<ValidationFailure> Validate(PropertyValidatorContext context) {

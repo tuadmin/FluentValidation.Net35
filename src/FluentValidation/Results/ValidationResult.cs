@@ -74,7 +74,7 @@ namespace FluentValidation.Results {
 		/// <param name="separator">The character to separate the error messages.</param>
 		/// <returns></returns>
 		public string ToString(string separator) {
-			return	string.Join(separator, errors.Select(failure => failure.ErrorMessage));
+			return	string.Join(separator, errors.Select(failure => failure.ErrorMessage).ToArray());
 		}
 	}
 }

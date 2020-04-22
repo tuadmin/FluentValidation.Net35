@@ -52,6 +52,8 @@ namespace FluentValidation.Validators {
 
 #if NETSTANDARD1_1 || NETSTANDARD1_6
 			return new Regex(_expression, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(2.0));
+#elif NET35
+			return new Regex(_expression, RegexOptions.IgnoreCase);
 #else
 			try
 			{

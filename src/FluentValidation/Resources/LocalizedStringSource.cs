@@ -71,7 +71,12 @@ namespace FluentValidation.Resources {
 				throw new InvalidOperationException($"Property '{resourceName}' on type '{resourceType}' does not return a string");
 			}
 
-			var accessor = (Func<string>)property.GetMethod.CreateDelegate(typeof(Func<string>));
+			var accessor =
+#if NET35
+			 (Func<string>)property.GetGetMethod().CreateDelegate(typeof(Func<string>));
+#else
+			 (Func<string>)property.GetMethod.CreateDelegate(typeof(Func<string>));
+#endif
 
 			return new ResourceAccessor {
 				Accessor = accessor,

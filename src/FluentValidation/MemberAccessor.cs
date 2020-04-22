@@ -29,9 +29,13 @@ namespace FluentValidation.Internal
 		}
 
 		static Expression<Action<TObject, TValue>> CreateSetExpression(Expression<Func<TObject, TValue>> getExpression) {
-			var valueParameter = Expression.Parameter(getExpression.Body.Type);
+			var valueParameter = Expression.Parameter(getExpression.Body.Type, "arg0");
 			var assignExpression = Expression.Lambda<Action<TObject, TValue>>(
+#if NET35
+				getExpression.Body.Assign(valueParameter),
+#else
 				Expression.Assign(getExpression.Body, valueParameter),
+#endif
 				getExpression.Parameters.First(), valueParameter);
 			return assignExpression;
 		}
