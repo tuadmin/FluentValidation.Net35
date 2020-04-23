@@ -5,13 +5,16 @@
 	using System.Threading.Tasks;
 	using Internal;
 	using Results;
+#if NET35
+	using Task = System.Threading.Tasks.TaskEx;
+#endif
 	/// <summary>
 	/// Custom validator that allows for manual/direct creation of ValidationFailure instances.
 	/// </summary>
 	/// <typeparam name="T"></typeparam>
 	public class CustomValidator<T> : PropertyValidator {
 		private readonly Action<T, CustomContext> _action;
-		private Func<T, CustomContext, CancellationToken, Task> _asyncAction;
+		private Func<T, CustomContext, CancellationToken, System.Threading.Tasks.Task> _asyncAction;
 		private readonly bool _isAsync;
 
 		/// <summary>
@@ -21,27 +24,19 @@
 		public CustomValidator(Action<T, CustomContext> action) : base(string.Empty) {
 			_isAsync = false;
 			_action = action;
-			_asyncAction = async (x, ctx, cancel) => {
-				_action(x, ctx);
-			};
+
+			_asyncAction = (x, ctx, cancel) => Task.Run(() => action(x, ctx), cancel);
 		}
 
 		/// <summary>
 		/// Creates a new instance of the CustomValidator.
 		/// </summary>
 		/// <param name="asyncAction"></param>
-		public CustomValidator(Func<T, CustomContext, CancellationToken, Task> asyncAction) : base(string.Empty) {
+		public CustomValidator(Func<T, CustomContext, CancellationToken, System.Threading.Tasks.Task> asyncAction) : base(string.Empty) {
 			_isAsync = true;
 			_asyncAction = asyncAction;
 			//TODO: For FV 9, throw an exception by default if async validator is being executed synchronously.
-			_action = (x, ctx) =>
-#if NET35
-			TaskEx
-#else
-			Task
-#endif
-			.Run(() => _asyncAction(x, ctx, new CancellationToken()))			
-			.GetAwaiter().GetResult();
+			_action = (x, ctx) =>Task.Run(() => _asyncAction(x, ctx, new CancellationToken())).GetAwaiter().GetResult();
 		}
 
 		public override IEnumerable<ValidationFailure> Validate(PropertyValidatorContext context) {

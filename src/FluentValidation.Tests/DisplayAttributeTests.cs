@@ -61,7 +61,11 @@ namespace FluentValidation.Tests {
 		}
 
         public class DisplayNameTestModel {
+#if NET35
+			[DisplayName("Foo")]
+#else
 			[Display(Name = "Foo")]
+#endif
 			public string Name1 { get; set; }
 			[DisplayName("Bar")]
 			public string Name2 { get; set; }
