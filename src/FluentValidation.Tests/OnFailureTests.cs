@@ -4,10 +4,12 @@
 	using Xunit;
 	using static ComplexValidationTester;
 	using TestHelper;
-
-	public class OnFailureTests {
+#if NET35
+  using Task = System.Threading.Tasks.TaskEx;
+#endif
+  public class OnFailureTests {
 		private TestValidator _validator;
-		
+
 		public OnFailureTests() {
 			_validator = new TestValidator();
 		}
@@ -40,7 +42,7 @@
 		}
 
 		[Fact]
-		public async Task OnFailure_called_for_each_failed_rule_asyncAsync() {
+		public async System.Threading.Tasks.Task OnFailure_called_for_each_failed_rule_asyncAsync() {
 			_validator.CascadeMode = CascadeMode.Continue;
 
 			int invoked = 0;
@@ -86,6 +88,77 @@
 			_validator.RuleFor(person => person.Address).SetValidator(new AddressValidatorWithOnFailure()).OnFailure((p,ctx)=> { Debug.WriteLine(p.Forename); });
 			_validator.ShouldHaveChildValidator(x => x.Address, typeof(AddressValidatorWithOnFailure));
 		}
+
+		[Fact]
+		public void WhenWithOnFailure_should_invoke_condition_on_inner_validator() {
+			bool shouldNotBeTrue = false;
+			var validator = new TestValidator();
+			validator.RuleFor(x => x.Surname)
+				.NotEqual("foo")
+				.When(x => x.Id > 0)
+				.OnFailure(x => shouldNotBeTrue = true);
+
+			var result = validator.Validate(new Person {Id = 0, Surname = "foo"});
+			result.Errors.Count.ShouldEqual(0);
+			shouldNotBeTrue.ShouldBeFalse();
+		}
+
+		[Fact]
+		public async System.Threading.Tasks.Task WhenAsyncWithOnFailure_should_invoke_condition_on_inner_validator() {
+			bool shouldNotBeTrue = false;
+			var validator = new TestValidator();
+			validator.RuleFor(x => x.Surname)
+				.NotEqual("foo")
+				.WhenAsync((x, token) => Task.FromResult(x.Id > 0))
+				.OnFailure(x => shouldNotBeTrue = true);
+
+			var result = await validator.ValidateAsync(new Person {Id = 0, Surname = "foo"});
+			result.Errors.Count.ShouldEqual(0);
+			shouldNotBeTrue.ShouldBeFalse();
+		}
+
+		[Fact]
+		public void WhenAsyncWithOnFailure_should_invoke_condition_on_inner_validator_invoked_synchronously() {
+			bool shouldNotBeTrue = false;
+			var validator = new TestValidator();
+			validator.RuleFor(x => x.Surname)
+				.NotEqual("foo")
+				.WhenAsync((x, token) => Task.FromResult(x.Id > 0))
+				.OnFailure(x => shouldNotBeTrue = true);
+
+			var result = validator.Validate(new Person {Id = 0, Surname = "foo"});
+			result.Errors.Count.ShouldEqual(0);
+			shouldNotBeTrue.ShouldBeFalse();
+		}
+
+		[Fact]
+		public async System.Threading.Tasks.Task WhenWithOnFailure_should_invoke_condition_on_async_inner_validator() {
+			bool shouldNotBeTrue = false;
+			var validator = new TestValidator();
+			validator.RuleFor(x => x.Surname)
+				.MustAsync((x, ctx) => Task.FromResult(false))
+				.When(x => x.Id > 0)
+				.OnFailure(x => shouldNotBeTrue = true);
+
+			var result = await validator.ValidateAsync(new Person {Id = 0, Surname = "foo"});
+			result.Errors.Count.ShouldEqual(0);
+			shouldNotBeTrue.ShouldBeFalse();
+		}
+
+		[Fact]
+		public async System.Threading.Tasks.Task WhenAsyncWithOnFailure_should_invoke_condition_on_async_inner_validator() {
+			bool shouldNotBeTrue = false;
+			var validator = new TestValidator();
+			validator.RuleFor(x => x.Surname)
+				.MustAsync((x, ctx) => Task.FromResult(false))
+				.WhenAsync((x, ctx) => Task.FromResult(x.Id > 0))
+				.OnFailure(x => shouldNotBeTrue = true);
+
+			var result = await validator.ValidateAsync(new Person {Id = 0, Surname = "foo"});
+			result.Errors.Count.ShouldEqual(0);
+			shouldNotBeTrue.ShouldBeFalse();
+		}
+
 	}
 
 	public class AddressValidatorWithOnFailure : AbstractValidator<Address> {
