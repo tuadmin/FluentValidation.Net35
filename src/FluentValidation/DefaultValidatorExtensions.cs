@@ -59,7 +59,7 @@ namespace FluentValidation {
 
 		/// <summary>
 		/// Defines a 'not empty' validator on the current rule builder.
-		/// Validation will fail if the property is null, an empty or the default value for the type (for example, 0 for integers)
+		/// Validation will fail if the property is null, an empty string, whitespace, an empty collection or the default value for the type (for example, 0 for integers but null for nullable integers)
 		/// </summary>
 		/// <typeparam name="T">Type of object being validated</typeparam>
 		/// <typeparam name="TProperty">Type of property being validated</typeparam>
@@ -241,6 +241,21 @@ namespace FluentValidation {
 		public static IRuleBuilderOptions<T, string> EmailAddress<T>(this IRuleBuilder<T, string> ruleBuilder) {
 			return ruleBuilder.SetValidator(new EmailValidator());
 		}
+
+		/// <summary>
+		/// Defines a regular expression validator on the current rule builder, but only for string properties.
+		/// Validation will fail if the value returned by the lambda is not a valid email address.
+		/// </summary>
+		/// <typeparam name="T">Type of object being validated</typeparam>
+		/// <param name="ruleBuilder">The rule builder on which the validator should be defined</param>
+		/// <param name="mode">The mode to use for email validation. If set to <see cref="EmailValidationMode.Net4xRegex"/>, then a regular expression will be used. This is the same regex used by <see cref="System.ComponentModel.DataAnnotations.EmailAddressAttribute"/> in .NET 4.x. If set to <see cref="EmailValidationMode.AspNetCoreCompatible"/> then this uses the simplified ASP.NET Core logic for checking an email address, which just checks for the presence of an @ sign.</param>
+		/// <returns></returns>
+		public static IRuleBuilderOptions<T, string> EmailAddress<T>(this IRuleBuilder<T, string> ruleBuilder, EmailValidationMode mode) {
+			// TODO: Merge the 2 email overloads together. This overload was added separately to retain backwards compatibility for the compiler.
+			var validator = mode == EmailValidationMode.AspNetCoreCompatible ? new AspNetCoreCompatibleEmailValidator() : (PropertyValidator)new EmailValidator();
+			return ruleBuilder.SetValidator(validator);
+		}
+
 
 		/// <summary>
 		/// Defines a 'not equal' validator on the current rule builder.
@@ -1070,7 +1085,7 @@ namespace FluentValidation {
 		/// <typeparam name="T"></typeparam>
 		/// <typeparam name="TElement"></typeparam>
 		/// <returns></returns>
-		public static IRuleBuilder<T, IEnumerable<TElement>> ForEach<T, TElement>(this IRuleBuilder<T, IEnumerable<TElement>> ruleBuilder,
+		public static IRuleBuilderOptions<T, IEnumerable<TElement>> ForEach<T, TElement>(this IRuleBuilder<T, IEnumerable<TElement>> ruleBuilder,
 			Action<IRuleBuilderInitialCollection<IEnumerable<TElement>, TElement>> action) {
 			var innerValidator = new InlineValidator<IEnumerable<TElement>>();
 			action(innerValidator.RuleForEach(x => x));
@@ -1088,6 +1103,22 @@ namespace FluentValidation {
 		/// <returns></returns>
 		public static IRuleBuilderOptions<T, string> IsEnumName<T>(this IRuleBuilder<T, string> ruleBuilder, Type enumType, bool caseSensitive = true) {
 			return ruleBuilder.SetValidator(new StringEnumValidator(enumType, caseSensitive));
+		}
+
+		/// <summary>
+		/// Defines child rules for a nested property.
+		/// </summary>
+		/// <param name="ruleBuilder">The rule builder.</param>
+		/// <param name="action">Callback that will be invoked to build the rules.</param>
+		/// <typeparam name="T"></typeparam>
+		/// <typeparam name="TProperty"></typeparam>
+		/// <returns></returns>
+		/// <exception cref="ArgumentNullException"></exception>
+		public static IRuleBuilderOptions<T, TProperty> ChildRules<T, TProperty>(this IRuleBuilder<T, TProperty> ruleBuilder, Action<InlineValidator<TProperty>> action) {
+			if (action == null) throw new ArgumentNullException(nameof(action));
+			var validator = new InlineValidator<TProperty>();
+			action(validator);
+			return ruleBuilder.SetValidator(validator);
 		}
 	}
 }

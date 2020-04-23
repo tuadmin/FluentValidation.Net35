@@ -251,9 +251,10 @@ namespace Xunit
 		}
 	}
 
+  
 	public class InlineDataAttribute : Xunit.Extensions.InlineDataAttribute
 	{
-		public InlineDataAttribute(params object[] dataValues)
+    public InlineDataAttribute(params object[] dataValues)
 			: base(dataValues)
 		{
 
