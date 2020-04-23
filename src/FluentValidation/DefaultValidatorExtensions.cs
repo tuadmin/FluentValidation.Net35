@@ -1,5 +1,5 @@
 #region License
-// Copyright (c) Jeremy Skinner (http://www.jeremyskinner.co.uk)
+// Copyright (c) .NET Foundation and contributors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// The latest version of this file can be found at https://github.com/jeremyskinner/FluentValidation
+// The latest version of this file can be found at https://github.com/FluentValidation/FluentValidation
 #endregion
 
 namespace FluentValidation {
@@ -179,7 +179,6 @@ namespace FluentValidation {
 			return ruleBuilder.SetValidator(new RegularExpressionValidator(expression.CoerceToNonGeneric()));
 		}
 
-
 		/// <summary>
 		/// Defines a regular expression validator on the current rule builder, but only for string properties.
 		/// Validation will fail if the value returned by the lambda does not match the regular expression.
@@ -232,34 +231,22 @@ namespace FluentValidation {
 		}
 
 		/// <summary>
-		/// Defines a regular expression validator on the current rule builder, but only for string properties.
-		/// Validation will fail if the value returned by the lambda is not a valid email address.
-		/// </summary>
-		/// <typeparam name="T">Type of object being validated</typeparam>
-		/// <param name="ruleBuilder">The rule builder on which the validator should be defined</param>
-		/// <returns></returns>
-		public static IRuleBuilderOptions<T, string> EmailAddress<T>(this IRuleBuilder<T, string> ruleBuilder) {
-			return ruleBuilder.SetValidator(new EmailValidator());
-		}
-
-		/// <summary>
-		/// Defines a regular expression validator on the current rule builder, but only for string properties.
+		/// Defines an email validator on the current rule builder for string properties.
 		/// Validation will fail if the value returned by the lambda is not a valid email address.
 		/// </summary>
 		/// <typeparam name="T">Type of object being validated</typeparam>
 		/// <param name="ruleBuilder">The rule builder on which the validator should be defined</param>
 		/// <param name="mode">The mode to use for email validation. If set to <see cref="EmailValidationMode.Net4xRegex"/>, then a regular expression will be used. This is the same regex used by <see cref="System.ComponentModel.DataAnnotations.EmailAddressAttribute"/> in .NET 4.x. If set to <see cref="EmailValidationMode.AspNetCoreCompatible"/> then this uses the simplified ASP.NET Core logic for checking an email address, which just checks for the presence of an @ sign.</param>
 		/// <returns></returns>
-		public static IRuleBuilderOptions<T, string> EmailAddress<T>(this IRuleBuilder<T, string> ruleBuilder, EmailValidationMode mode) {
-			// TODO: Merge the 2 email overloads together. This overload was added separately to retain backwards compatibility for the compiler.
+		public static IRuleBuilderOptions<T, string> EmailAddress<T>(this IRuleBuilder<T, string> ruleBuilder, EmailValidationMode mode = EmailValidationMode.AspNetCoreCompatible) {
 			var validator = mode == EmailValidationMode.AspNetCoreCompatible ? new AspNetCoreCompatibleEmailValidator() : (PropertyValidator)new EmailValidator();
 			return ruleBuilder.SetValidator(validator);
 		}
 
-
 		/// <summary>
 		/// Defines a 'not equal' validator on the current rule builder.
 		/// Validation will fail if the specified value is equal to the value of the property.
+		/// For strings, this performs an ordinal comparison unless you specify a different comparer.
 		/// </summary>
 		/// <typeparam name="T">Type of object being validated</typeparam>
 		/// <typeparam name="TProperty">Type of property being validated</typeparam>
@@ -269,12 +256,16 @@ namespace FluentValidation {
 		/// <returns></returns>
 		public static IRuleBuilderOptions<T, TProperty> NotEqual<T, TProperty>(this IRuleBuilder<T, TProperty> ruleBuilder,
 																			   TProperty toCompare, IEqualityComparer comparer = null) {
+			if (comparer == null && typeof(TProperty) == typeof(string)) {
+				comparer = StringComparer.Ordinal;
+			}
 			return ruleBuilder.SetValidator(new NotEqualValidator(toCompare, comparer));
 		}
 
 		/// <summary>
 		/// Defines a 'not equal' validator on the current rule builder using a lambda to specify the value.
 		/// Validation will fail if the value returned by the lambda is equal to the value of the property.
+		/// For strings, this performs an ordinal comparison unless you specify a different comparer.
 		/// </summary>
 		/// <typeparam name="T">Type of object being validated</typeparam>
 		/// <typeparam name="TProperty">Type of property being validated</typeparam>
@@ -284,6 +275,9 @@ namespace FluentValidation {
 		/// <returns></returns>
 		public static IRuleBuilderOptions<T, TProperty> NotEqual<T, TProperty>(this IRuleBuilder<T, TProperty> ruleBuilder,
 																			   Expression<Func<T, TProperty>> expression, IEqualityComparer comparer = null) {
+			if (comparer == null && typeof(TProperty) == typeof(string)) {
+				comparer = StringComparer.Ordinal;
+			}
 			var func = expression.Compile();
 			return ruleBuilder.SetValidator(new NotEqualValidator(func.CoerceToNonGeneric(), expression.GetMember(), comparer));
 		}
@@ -291,6 +285,7 @@ namespace FluentValidation {
 		/// <summary>
 		/// Defines an 'equals' validator on the current rule builder.
 		/// Validation will fail if the specified value is not equal to the value of the property.
+		/// For strings, this performs an ordinal comparison unless you specify a different comparer.
 		/// </summary>
 		/// <typeparam name="T">Type of object being validated</typeparam>
 		/// <typeparam name="TProperty">Type of property being validated</typeparam>
@@ -299,12 +294,16 @@ namespace FluentValidation {
 		/// <param name="comparer">Equality Comparer to use</param>
 		/// <returns></returns>
 		public static IRuleBuilderOptions<T, TProperty> Equal<T, TProperty>(this IRuleBuilder<T, TProperty> ruleBuilder, TProperty toCompare, IEqualityComparer comparer = null) {
+			if (comparer == null && typeof(TProperty) == typeof(string)) {
+				comparer = StringComparer.Ordinal;
+			}
 			return ruleBuilder.SetValidator(new EqualValidator(toCompare, comparer));
 		}
 
 		/// <summary>
 		/// Defines an 'equals' validator on the current rule builder using a lambda to specify the comparison value.
 		/// Validation will fail if the value returned by the lambda is not equal to the value of the property.
+		/// For strings, this performs an ordinal comparison unless you specify a different comparer.
 		/// </summary>
 		/// <typeparam name="T">The type of object being validated</typeparam>
 		/// <typeparam name="TProperty">Type of property being validated</typeparam>
@@ -313,6 +312,9 @@ namespace FluentValidation {
 		/// <param name="comparer">Equality comparer to use</param>
 		/// <returns></returns>
 		public static IRuleBuilderOptions<T, TProperty> Equal<T, TProperty>(this IRuleBuilder<T, TProperty> ruleBuilder, Expression<Func<T, TProperty>> expression, IEqualityComparer comparer = null) {
+			if (comparer == null && typeof(TProperty) == typeof(string)) {
+				comparer = StringComparer.Ordinal;
+			}
 			var func = expression.Compile();
 			return ruleBuilder.SetValidator(new EqualValidator(func.CoerceToNonGeneric(), expression.GetMember(), comparer));
 		}
@@ -1092,16 +1094,47 @@ namespace FluentValidation {
 			return ruleBuilder.SetValidator(innerValidator);
 		}
 
-		/// <summary>
-		/// Defines a enum value validator on the current rule builder that ensures that the specific value is a valid enum name.
-		/// </summary>
-		/// <typeparam name="T">Type of Enum being validated</typeparam>
-		/// <typeparam name="TProperty">Type of property being validated</typeparam>
-		/// <param name="ruleBuilder">The rule builder on which the validator should be defined</param>
-		/// <param name="enumType">The enum whose the string should match any name</param>
-		/// <param name="caseSensitive">If the comparison between the string and the enum names should be case sensitive</param>
-		/// <returns></returns>
-		public static IRuleBuilderOptions<T, string> IsEnumName<T>(this IRuleBuilder<T, string> ruleBuilder, Type enumType, bool caseSensitive = true) {
+#if NET35
+    /// <summary>
+    /// Allows rules to be built against individual elements in the collection.
+    /// </summary>
+    /// <param name="ruleBuilder"></param>
+    /// <param name="action"></param>
+    /// <typeparam name="T"></typeparam>
+    /// <typeparam name="TElement"></typeparam>
+    /// <returns></returns>
+    public static IRuleBuilderOptions<T, IList<TElement>> ForEach<T, TElement>(this IRuleBuilder<T, IList<TElement>> ruleBuilder,
+      Action<IRuleBuilderInitialCollection<IEnumerable<TElement>, TElement>> action) {
+      var innerValidator = new InlineValidator<IEnumerable<TElement>>();
+      action(innerValidator.RuleForEach(x => x));
+      return ruleBuilder.SetValidator(innerValidator);
+    }
+
+    /// <summary>
+    /// Allows rules to be built against individual elements in the collection.
+    /// </summary>
+    /// <param name="ruleBuilder"></param>
+    /// <param name="action"></param>
+    /// <typeparam name="T"></typeparam>
+    /// <typeparam name="TElement"></typeparam>
+    /// <returns></returns>
+    public static IRuleBuilderOptions<T, List<TElement>> ForEach<T, TElement>(this IRuleBuilder<T, List<TElement>> ruleBuilder,
+      Action<IRuleBuilderInitialCollection<IEnumerable<TElement>, TElement>> action) {
+      var innerValidator = new InlineValidator<IEnumerable<TElement>>();
+      action(innerValidator.RuleForEach(x => x));
+      return ruleBuilder.SetValidator(innerValidator);
+    }
+#endif
+
+    /// <summary>
+    /// Defines a enum value validator on the current rule builder that ensures that the specific value is a valid enum name.
+    /// </summary>
+    /// <typeparam name="T">Type of Enum being validated</typeparam>
+    /// <param name="ruleBuilder">The rule builder on which the validator should be defined</param>
+    /// <param name="enumType">The enum whose the string should match any name</param>
+    /// <param name="caseSensitive">If the comparison between the string and the enum names should be case sensitive</param>
+    /// <returns></returns>
+    public static IRuleBuilderOptions<T, string> IsEnumName<T>(this IRuleBuilder<T, string> ruleBuilder, Type enumType, bool caseSensitive = true) {
 			return ruleBuilder.SetValidator(new StringEnumValidator(enumType, caseSensitive));
 		}
 

@@ -1,6 +1,6 @@
 ﻿#region License
 
-// Copyright (c) Jeremy Skinner (http://www.jeremyskinner.co.uk)
+// Copyright (c) .NET Foundation and contributors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// The latest version of this file can be found at https://github.com/JeremySkinner/FluentValidation
+// The latest version of this file can be found at https://github.com/FluentValidation/FluentValidation
 
 #endregion
 
@@ -148,7 +148,7 @@ namespace FluentValidation.Tests {
 		}
 
 		private class MyAsyncNotNullValidator : NotNullValidator {
-			public override bool ShouldValidateAsync(ValidationContext context) {
+			public override bool ShouldValidateAsynchronously(ValidationContext context) {
 				return context.IsAsync();
 			}
 		}
@@ -502,7 +502,7 @@ namespace FluentValidation.Tests {
 		[Fact]
 		public async System.Threading.Tasks.Task Can_access_colletion_index_async() {
 			var validator = new InlineValidator<Person>();
-			validator.RuleForEach(x => x.Orders).NotNull().WithMessage("{CollectionIndex}");
+			validator.RuleForEach(x => x.Orders).MustAsync((x, ct) => Task.FromResult(x != null)).WithMessage("{CollectionIndex}");
 			var result = await validator.ValidateAsync(new Person {Orders = new List<Order>() {new Order(), null}});
 			result.IsValid.ShouldBeFalse();
 			result.Errors[0].ErrorMessage.ShouldEqual("1");
@@ -535,6 +535,70 @@ namespace FluentValidation.Tests {
 
 			result = await validator.ValidateAsync(Tuple.Create(new Person() { Orders = new List<Order> { new Order() }}));
 			result.IsValid.ShouldBeFalse();
+		}
+
+		[Fact]
+		public void Can_access_parent_index() {
+			var personValidator = new InlineValidator<Person>();
+			var orderValidator = new InlineValidator<Order>();
+
+			orderValidator.RuleFor(order => order.ProductName)
+				.NotEmpty()
+				.WithMessage("{CollectionIndex} must not be empty");
+
+			// Two rules - one for each collection syntax.
+
+			personValidator.RuleFor(x => x.Orders)
+				.NotEmpty()
+				.ForEach(order => {
+					order.SetValidator(orderValidator);
+				});
+
+			personValidator.RuleForEach(x => x.Orders).SetValidator(orderValidator);
+
+			var result = personValidator.Validate(new Person() {
+				Orders = new List<Order> {
+					new Order() { ProductName =  "foo"},
+					new Order(),
+					new Order() { ProductName = "bar" }
+				}
+			});
+
+			result.IsValid.ShouldBeFalse();
+			result.Errors[0].ErrorMessage.ShouldEqual("1 must not be empty");
+			result.Errors[0].ErrorMessage.ShouldEqual("1 must not be empty");
+		}
+
+		[Fact]
+		public async System.Threading.Tasks.Task Can_access_parent_index_async() {
+			var personValidator = new InlineValidator<Person>();
+			var orderValidator = new InlineValidator<Order>();
+
+			orderValidator.RuleFor(order => order.ProductName)
+				.NotEmpty()
+				.WithMessage("{CollectionIndex} must not be empty");
+
+			// Two rules - one for each collection syntax.
+
+			personValidator.RuleFor(x => x.Orders)
+				.NotEmpty()
+				.ForEach(order => {
+					order.SetValidator(orderValidator);
+				});
+
+			personValidator.RuleForEach(x => x.Orders).SetValidator(orderValidator);
+
+			var result = await personValidator.ValidateAsync(new Person() {
+				Orders = new List<Order> {
+					new Order() { ProductName =  "foo"},
+					new Order(),
+					new Order() { ProductName = "bar" }
+				}
+			});
+
+			result.IsValid.ShouldBeFalse();
+			result.Errors[0].ErrorMessage.ShouldEqual("1 must not be empty");
+			result.Errors[0].ErrorMessage.ShouldEqual("1 must not be empty");
 		}
 
 		public class OrderValidator : AbstractValidator<Order> {

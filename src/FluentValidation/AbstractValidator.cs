@@ -1,19 +1,19 @@
 #region License
-// Copyright (c) Jeremy Skinner (http://www.jeremyskinner.co.uk)
-// 
-// Licensed under the Apache License, Version 2.0 (the "License"); 
-// you may not use this file except in compliance with the License. 
-// You may obtain a copy of the License at 
-// 
-// http://www.apache.org/licenses/LICENSE-2.0 
-// 
-// Unless required by applicable law or agreed to in writing, software 
-// distributed under the License is distributed on an "AS IS" BASIS, 
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-// See the License for the specific language governing permissions and 
+// Copyright (c) .NET Foundation and contributors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
 // limitations under the License.
-// 
-// The latest version of this file can be found at https://github.com/jeremyskinner/FluentValidation
+//
+// The latest version of this file can be found at https://github.com/FluentValidation/FluentValidation
 #endregion
 
 namespace FluentValidation {
@@ -22,13 +22,10 @@ namespace FluentValidation {
 	using System.Collections.Generic;
 	using System.Linq;
 	using System.Linq.Expressions;
-	using System.Reflection;
 	using System.Threading;
 	using System.Threading.Tasks;
 	using Internal;
 	using Results;
-	using TestHelper;
-	using Validators;
 
 	/// <summary>
 	/// Base class for object validators.
@@ -45,33 +42,23 @@ namespace FluentValidation {
 			get => _cascadeMode();
 			set => _cascadeMode = () => value;
 		}
-		
-		ValidationResult IValidator.Validate(object instance) {
-			instance.Guard("Cannot pass null to Validate.", nameof(instance));
-			if(! ((IValidator)this).CanValidateInstancesOfType(instance.GetType())) {
-				throw new InvalidOperationException($"Cannot validate instances of type '{instance.GetType().Name}'. This validator can only validate instances of type '{typeof(T).Name}'.");
-			}
-			
-			return Validate((T)instance);
-		}
-		
-		Task<ValidationResult> IValidator.ValidateAsync(object instance, CancellationToken cancellation) {
-			instance.Guard("Cannot pass null to Validate.", nameof(instance));
-			if (!((IValidator) this).CanValidateInstancesOfType(instance.GetType())) {
-				throw new InvalidOperationException($"Cannot validate instances of type '{instance.GetType().Name}'. This validator can only validate instances of type '{typeof(T).Name}'.");
-			}
 
-			return ValidateAsync((T) instance, cancellation);
+		ValidationResult IValidator.Validate(object instance) {
+			return ((IValidator) this).Validate(new ValidationContext(instance));
 		}
-		
+
+		Task<ValidationResult> IValidator.ValidateAsync(object instance, CancellationToken cancellation) {
+			return ((IValidator)this).ValidateAsync(new ValidationContext(instance), cancellation);
+		}
+
 		ValidationResult IValidator.Validate(ValidationContext context) {
 			context.Guard("Cannot pass null to Validate", nameof(context));
-			return Validate(context.ToGeneric<T>());
+			return Validate(ValidationContext<T>.GetFromNonGenericContext(context));
 		}
-		
+
 		Task<ValidationResult> IValidator.ValidateAsync(ValidationContext context, CancellationToken cancellation) {
 			context.Guard("Cannot pass null to Validate", nameof(context));
-			return ValidateAsync(context.ToGeneric<T>(), cancellation);
+			return ValidateAsync(ValidationContext<T>.GetFromNonGenericContext(context), cancellation);
 		}
 
 		/// <summary>
@@ -92,7 +79,7 @@ namespace FluentValidation {
 		public Task<ValidationResult> ValidateAsync(T instance, CancellationToken cancellation = new CancellationToken()) {
 			return ValidateAsync(new ValidationContext<T>(instance, new PropertyChain(), ValidatorOptions.ValidatorSelectors.DefaultValidatorSelectorFactory()), cancellation);
 		}
-		
+
 		/// <summary>
 		/// Validates the specified instance.
 		/// </summary>
@@ -103,15 +90,15 @@ namespace FluentValidation {
 
 			var result = new ValidationResult();
 			bool shouldContinue = PreValidate(context, result);
-			
+
 			if (!shouldContinue) {
 				return result;
 			}
 
 			EnsureInstanceNotNull(context.InstanceToValidate);
-			
+
 			var failures = Rules.SelectMany(x => x.Validate(context));
-			
+
 			foreach (var validationFailure in failures.Where(failure => failure != null)) {
 				result.Errors.Add(validationFailure);
 			}
@@ -132,9 +119,9 @@ namespace FluentValidation {
 			context.RootContextData["__FV_IsAsyncExecution"] = true;
 
 			var result = new ValidationResult();
-			
+
 			bool shouldContinue = PreValidate(context, result);
-			
+
 			if (!shouldContinue) {
 				return result;
 			}
@@ -149,7 +136,7 @@ namespace FluentValidation {
 					result.Errors.Add(failure);
 				}
 			}
-			
+
 			SetExecutedRulesets(result, context);
 
 			return result;
@@ -176,7 +163,8 @@ namespace FluentValidation {
 		}
 
 		bool IValidator.CanValidateInstancesOfType(Type type) {
-			return typeof(T).GetTypeInfo().IsAssignableFrom(type.GetTypeInfo());
+			if (type == null) throw new ArgumentNullException(nameof(type));
+			return typeof(T).IsAssignableFrom(type);
 		}
 
 		/// <summary>
@@ -210,7 +198,7 @@ namespace FluentValidation {
 			AddRule(rule);
 			var ruleBuilder = new RuleBuilder<T, TProperty>(rule, this);
 			return ruleBuilder;
-		} 
+		}
 
 		/// <summary>
 		/// Defines a RuleSet that can be used to group together several validators.
@@ -237,15 +225,34 @@ namespace FluentValidation {
 		/// <param name="action">Action that encapsulates the rules.</param>
 		/// <returns></returns>
 		public IConditionBuilder When(Func<T, bool> predicate, Action action) {
+			return When((x, ctx) => predicate(x), action);
+		}
+
+		/// <summary>
+		/// Defines a condition that applies to several rules
+		/// </summary>
+		/// <param name="predicate">The condition that should apply to multiple rules</param>
+		/// <param name="action">Action that encapsulates the rules.</param>
+		/// <returns></returns>
+		public IConditionBuilder When(Func<T, ValidationContext<T>, bool> predicate, Action action) {
 			return new ConditionBuilder<T>(Rules).When(predicate, action);
 		}
-		
+
 		/// <summary>
 		/// Defines an inverse condition that applies to several rules
 		/// </summary>
 		/// <param name="predicate">The condition that should be applied to multiple rules</param>
 		/// <param name="action">Action that encapsulates the rules</param>
 		public IConditionBuilder Unless(Func<T, bool> predicate, Action action) {
+			return Unless((x, ctx) => predicate(x), action);
+		}
+
+		/// <summary>
+		/// Defines an inverse condition that applies to several rules
+		/// </summary>
+		/// <param name="predicate">The condition that should be applied to multiple rules</param>
+		/// <param name="action">Action that encapsulates the rules</param>
+		public IConditionBuilder Unless(Func<T, ValidationContext<T>, bool> predicate, Action action) {
 			return new ConditionBuilder<T>(Rules).Unless(predicate, action);
 		}
 
@@ -256,6 +263,16 @@ namespace FluentValidation {
 		/// <param name="action">Action that encapsulates the rules.</param>
 		/// <returns></returns>
 		public IConditionBuilder WhenAsync(Func<T, CancellationToken, Task<bool>> predicate, Action action) {
+			return WhenAsync((x, ctx, cancel) => predicate(x, cancel), action);
+		}
+
+		/// <summary>
+		/// Defines an asynchronous condition that applies to several rules
+		/// </summary>
+		/// <param name="predicate">The asynchronous condition that should apply to multiple rules</param>
+		/// <param name="action">Action that encapsulates the rules.</param>
+		/// <returns></returns>
+		public IConditionBuilder WhenAsync(Func<T, ValidationContext<T>, CancellationToken, Task<bool>> predicate, Action action) {
 			return new AsyncConditionBuilder<T>(Rules).WhenAsync(predicate, action);
 		}
 
@@ -265,6 +282,15 @@ namespace FluentValidation {
 		/// <param name="predicate">The asynchronous condition that should be applied to multiple rules</param>
 		/// <param name="action">Action that encapsulates the rules</param>
 		public IConditionBuilder UnlessAsync(Func<T, CancellationToken, Task<bool>> predicate, Action action) {
+			return UnlessAsync((x, ctx, cancel) => predicate(x, cancel), action);
+		}
+
+		/// <summary>
+		/// Defines an inverse asynchronous condition that applies to several rules
+		/// </summary>
+		/// <param name="predicate">The asynchronous condition that should be applied to multiple rules</param>
+		/// <param name="action">Action that encapsulates the rules</param>
+		public IConditionBuilder UnlessAsync(Func<T, ValidationContext<T>, CancellationToken, Task<bool>> predicate, Action action) {
 			return new AsyncConditionBuilder<T>(Rules).UnlessAsync(predicate, action);
 		}
 
@@ -276,7 +302,7 @@ namespace FluentValidation {
 			var rule = IncludeRule.Create<T>(rulesToInclude, () => CascadeMode);
 			AddRule(rule);
 		}
-		
+
 		/// <summary>
 		/// Includes the rules from the specified validator
 		/// </summary>
