@@ -2,7 +2,7 @@
 
 ```eval_rst
 .. warning::
-   Integration with ASP.NET MVC 5 is deprecated. For an optimal experience, we suggest using FluentValidtation with ASP.NET Core.
+   Integration with ASP.NET MVC 5 is no longer supported as of FluentValidation 9. Please migrate to ASP.NET Core.
 ```
 
 ## Getting Started
@@ -101,7 +101,7 @@ public class PeopleController : Controller {
 
 Now when you post the form MVC’s `DefaultModelBinder` will validate the Person object using the `FluentValidationModelValidatorProvider`.
 
-*Note for advanced users* When validators are executed using this automatic integration, the [RootContextData](/advanced.html#root-context-data) contain an entry called `InvokedByMvc` with a value set to true, which can be used within custom validators to tell whether a validator was invoked automatically by MVC, or manually. 
+*Note for advanced users* When validators are executed using this automatic integration, the [RootContextData](advanced.html#root-context-data) contain an entry called `InvokedByMvc` with a value set to true, which can be used within custom validators to tell whether a validator was invoked automatically by MVC, or manually. 
 
 ## Known Limitations
 

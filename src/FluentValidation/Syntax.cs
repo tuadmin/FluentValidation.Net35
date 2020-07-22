@@ -103,7 +103,14 @@ namespace FluentValidation {
 	/// </summary>
 	/// <typeparam name="T"></typeparam>
 	/// <typeparam name="TElement"></typeparam>
-	public interface IRuleBuilderInitialCollection<T, TElement> : IRuleBuilder<T, TElement>, IConfigurable<CollectionPropertyRule<TElement>, IRuleBuilderInitialCollection<T, TElement>> {
+	public interface IRuleBuilderInitialCollection<T, TElement> : IRuleBuilder<T, TElement>, IConfigurable<CollectionPropertyRule<T, TElement>, IRuleBuilderInitialCollection<T, TElement>> {
+
+		/// <summary>
+		/// Transforms the collection element value before validation occurs.
+		/// </summary>
+		/// <param name="transformationFunc"></param>
+		/// <returns></returns>
+		IRuleBuilderInitial<T, TNew> Transform<TNew>(Func<TElement, TNew> transformationFunc);
 	}
 
 	/// <summary>

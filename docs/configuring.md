@@ -38,7 +38,9 @@ It is also possible to use your own custom arguments in the validation message. 
 
 ```csharp
 //Using static values in a custom message:
-RuleFor(customer => x.Surname).NotNull().WithMessage(customer => string.Format("This message references some constant values: {0} {1}", "hello", 5));
+RuleFor(customer => x.Surname)
+  .NotNull()
+  .WithMessage(customer => string.Format("This message references some constant values: {0} {1}", "hello", 5))
 //Result would be "This message references some constant values: hello 5"
 
 //Referencing other property values:
@@ -82,12 +84,3 @@ ValidatorOptions.DisplayNameResolver = (type, member, expression) => {
 ```
 
 This is not a realistic example as it changes all properties to have the suffix "Foo", but hopefully illustrates the point.
-
-Additionally, FluentValidation will respect the use of the DisplayName and Display attributes for generating the property's name within error messages:
-
-```csharp
-public class Person {
-  [Display(Name="Last name")]
-  public string Surname { get; set; }
-}
-```

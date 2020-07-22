@@ -61,9 +61,25 @@ namespace FluentValidation.Tests {
 
 		[Fact]
 		public void Validates_with_property() {
-			var validator = new TestValidator(v => v.RuleFor(x => x.Id).GreaterThanOrEqualTo(x => x.AnotherInt));
+			var validator = new TestValidator(v => v.RuleFor(x => x.Id).GreaterThanOrEqualTo(x => x.AnotherInt).WithMessage("{ComparisonProperty}"));
 			var result = validator.Validate(new Person { Id = 0, AnotherInt = 1 });
 			result.IsValid.ShouldBeFalse();
+			result.Errors[0].ErrorMessage.ShouldEqual("Another Int");
+		}
+
+		[Fact]
+		public void Comparison_property_uses_custom_resolver() {
+			var originalResolver = ValidatorOptions.Global.DisplayNameResolver;
+
+			try {
+				ValidatorOptions.Global.DisplayNameResolver = (type, member, expr) => member.Name + "Foo";
+				var validator = new TestValidator(v => v.RuleFor(x => x.Id).GreaterThanOrEqualTo(x => x.AnotherInt).WithMessage("{ComparisonProperty}"));
+				var result = validator.Validate(new Person { Id = 0, AnotherInt = 1 });
+				result.Errors[0].ErrorMessage.ShouldEqual("AnotherIntFoo");
+			}
+			finally {
+				ValidatorOptions.Global.DisplayNameResolver = originalResolver;
+			}
 		}
 
 		[Fact]

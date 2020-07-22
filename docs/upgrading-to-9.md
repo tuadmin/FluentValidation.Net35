@@ -13,9 +13,9 @@ Support for the following platforms has been dropped:
 
 FluentValidation still supports netstandard2 and net461, meaning that it'll run on .NET Core 2.0 or higher (3.1 recommended), or .NET Framework 4.6.1 or higher.
 
-FluentValidation.AspNetCore requires .NET Core 2.0 or higher (3.1 recommended).
+FluentValidation.AspNetCore requires .NET Core 2.1 or 3.1 (3.1 recommended).
 
-Integration with MVC5/WebApi 2 is no longer support - both the FluentValidation.Mvc5 and FluentValidation.WebApi packages are deprecated, but will continue to run on .NET Framework 4.6.1 or higher. We recommend migrating to .NET Core as soon as possible.
+Integration with MVC5/WebApi 2 is no longer supported - both the FluentValidation.Mvc5 and FluentValidation.WebApi packages were deprecated with the release of FluentValidation 8, but they will now no longer receive further updates. They will continue to run on .NET Framework 4.6.1 or higher, but we recommend migrating to .NET Core as soon as possible.
 
 ### Default Email Validation Mode Changed
 
@@ -52,6 +52,19 @@ FluentValidation 4.x-8.x contained a bug where using `NotEqual`/`Equal` on strin
 
 [See the documentation for further details.](built-in-validators.html#equal-validator)
 
+### Removal of non-generic Validate overload
+
+The `IValidator.Validate(object model)` overload has been removed to improve type safety. If you were using this method before, you can use the overload that accepts an `IValidationContext` instead:
+
+```csharp
+var context = new ValidationContext<object>(model);
+var result = validator.Validate(context);
+```
+
+### Removal of non-generic ValidationContext.
+
+The non-generic `ValidationContext` has been removed. Anywhere that previously used this class will either accept a `ValidationContext<T>` or a non-generic `IValidationContext` interface instead. If you previously made use of this class in custom code, you will need to update it to use one of these as appropriate.
+
 ### Transform updates
 
 The `Transform` method can now be used to transform a property value to a different type prior to validation occurring. [See the documentation for further details.](transform)
@@ -64,7 +77,7 @@ Prior to 9.0, changing a rule's severity required hard-coding the severity:
 RuleFor(x => x.Surname).NotNull().WithSeverity(Severity.Warning);
 ```
 
-Alternatively, this can be generated from a callback, allowing the severity to be dynamically determined:
+Alternatively, this can now be generated from a callback, allowing the severity to be dynamically determined:
 
 ```csharp
 RuleFor(x => x.Surname).NotNull().WithSeverity(x => Severity.Warning);
@@ -73,6 +86,10 @@ RuleFor(x => x.Surname).NotNull().WithSeverity(x => Severity.Warning);
 ### Changes to the ScalePrecisionValidator
 
 The algorithm used by the `ScalePrecision` validator has been updated to match SQL Server and other RDBMS systems. The algorithm now correctly checks how many digits are to the left of the decimal point, which it didn't do before. 
+
+### ChildValidatorAdaptor and IncludeRule now have generic parameters
+
+The `ChildvalidatorAdaptor` and `IncludeRule` classes now have generic type parameters. This will not affect users of the public API, but may affect anyone using the internal API. 
 
 ### Removed inferring property names from [Display] attribute
 

@@ -20,6 +20,7 @@ namespace FluentValidation.AspNetCore {
 	using System;
 	using System.Collections.Generic;
 	using System.Reflection;
+	using Microsoft.Extensions.DependencyInjection;
 
 	/// <summary>
 	/// FluentValidation asp.net core configuration
@@ -63,39 +64,62 @@ namespace FluentValidation.AspNetCore {
 		/// </summary>
 		public bool ImplicitlyValidateChildProperties { get; set; }
 
+
 		internal bool ClientsideEnabled = true;
 		internal Action<FluentValidationClientModelValidatorProvider> ClientsideConfig = x => {};
 		internal List<Assembly> AssembliesToRegister { get; } = new List<Assembly>();
+		internal Func<AssemblyScanner.AssemblyScanResult, bool> TypeFilter { get; set; }
+		internal ServiceLifetime ServiceLifetime { get; set; } = ServiceLifetime.Transient;
+
+		/// <summary>
+		/// Whether automatic server-side validation should be enabled (default true).
+		/// </summary>
+		public bool AutomaticValidationEnabled { get; set; } = true;
 
 		/// <summary>
 		/// Registers all validators derived from AbstractValidator within the assembly containing the specified type
 		/// </summary>
-		public FluentValidationMvcConfiguration RegisterValidatorsFromAssemblyContaining<T>() {
-			return RegisterValidatorsFromAssemblyContaining(typeof(T));
+		/// <param name="filter">Optional filter that allows certain types to be skipped from registration.</param>
+		/// <param name="lifetime">The service lifetime that should be used for the validator registration. Defaults to Transient</param>
+		public FluentValidationMvcConfiguration RegisterValidatorsFromAssemblyContaining<T>(Func<AssemblyScanner.AssemblyScanResult, bool> filter = null, ServiceLifetime lifetime = ServiceLifetime.Transient) {
+			return RegisterValidatorsFromAssemblyContaining(typeof(T), filter, lifetime);
 		}
 
 		/// <summary>
 		/// Registers all validators derived from AbstractValidator within the assembly containing the specified type
 		/// </summary>
-		public FluentValidationMvcConfiguration RegisterValidatorsFromAssemblyContaining(Type type) {
-			return RegisterValidatorsFromAssembly(type.GetTypeInfo().Assembly);
+		/// <param name="type">The type that indicates which assembly that should be scanned</param>
+		/// <param name="filter">Optional filter that allows certain types to be skipped from registration.</param>
+		/// <param name="lifetime">The service lifetime that should be used for the validator registration. Defaults to Transient</param>
+		public FluentValidationMvcConfiguration RegisterValidatorsFromAssemblyContaining(Type type, Func<AssemblyScanner.AssemblyScanResult, bool> filter = null, ServiceLifetime lifetime = ServiceLifetime.Transient) {
+			return RegisterValidatorsFromAssembly(type.GetTypeInfo().Assembly, filter, lifetime);
 		}
 
 		/// <summary>
 		/// Registers all validators derived from AbstractValidator within the specified assembly
 		/// </summary>
-		public FluentValidationMvcConfiguration RegisterValidatorsFromAssembly(Assembly assembly) {
+		/// <param name="assembly">The assembly to scan</param>
+		/// <param name="filter">Optional filter that allows certain types to be skipped from registration.</param>
+		/// <param name="lifetime">The service lifetime that should be used for the validator registration. Defaults to Transient</param>
+		public FluentValidationMvcConfiguration RegisterValidatorsFromAssembly(Assembly assembly, Func<AssemblyScanner.AssemblyScanResult, bool> filter = null, ServiceLifetime lifetime = ServiceLifetime.Transient) {
 			ValidatorFactoryType = typeof(ServiceProviderValidatorFactory);
 			AssembliesToRegister.Add(assembly);
+			TypeFilter = filter;
+			ServiceLifetime = lifetime;
 			return this;
 		}
 
 		/// <summary>
 		/// Registers all validators derived from AbstractValidator within the specified assemblies
 		/// </summary>
-		public FluentValidationMvcConfiguration RegisterValidatorsFromAssemblies(IEnumerable<Assembly> assemblies) {
+		/// <param name="assemblies">The assemblies to scan</param>
+		/// <param name="filter">Optional filter that allows certain types to be skipped from registration.</param>
+		/// <param name="lifetime">The service lifetime that should be used for the validator registration. Defaults to Transient</param>
+		public FluentValidationMvcConfiguration RegisterValidatorsFromAssemblies(IEnumerable<Assembly> assemblies, Func<AssemblyScanner.AssemblyScanResult, bool> filter = null, ServiceLifetime lifetime = ServiceLifetime.Transient) {
 			ValidatorFactoryType = typeof(ServiceProviderValidatorFactory);
 			AssembliesToRegister.AddRange(assemblies);
+			TypeFilter = filter;
+			ServiceLifetime = lifetime;
 			return this;
 		}
 

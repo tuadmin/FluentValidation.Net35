@@ -2,12 +2,13 @@
 
 ### Getting Started
 
-FluentValidation can be integrated with ASP.NET Core. Once enabled, MVC will use FluentValidation to validate objects that are passed in to controller actions by the model binding infrastructure.
+FluentValidation supports integration with ASP.NET Core 2.1 or 3.1 (3.1 recommended). Once enabled, MVC will use FluentValidation to validate objects that are passed in to controller actions by the model binding infrastructure.
 
-To enable MVC integration, you'll need to add a reference to the `FluentValidation.AspNetCore` assembly by installing the appropriate NuGet package:
+
+To enable MVC integration, you'll need to add a reference to the `FluentValidation.AspNetCore` assembly by installing the appropriate NuGet package. From the command line, you can install the package by typing:
 
 ```shell
-Install-Package FluentValidation.AspNetCore
+dotnet add package FluentValidation.AspNetCore
 ```
 
 Once installed, you'll need to configure FluentValidation in your app's Startup class by calling the `AddFluentValidation` extension method inside the `ConfigureServices` method (which requires a `using FluentValidation.AspNetCore`). This method must be called directly after calling `AddMvc`.
@@ -21,7 +22,7 @@ public void ConfigureServices(IServiceCollection services) {
 }
 ```
 
-In order for ASP.NET to discover your validators, they must be registered with the services collection. You can either do this by calling the `AddTransient` method for each of your validators...
+In order for ASP.NET to discover your validators, they must be registered with the services collection. You can either do this by calling the `AddTransient` method for each of your validators:
 
 
 ```csharp
@@ -35,19 +36,27 @@ public void ConfigureServices(IServiceCollection services) {
 }
 ```
 
-...or by using the `AddFromAssemblyContaining` method to automatically register all validators within a particular assembly. This will automatically find any public, non-abstract types that inherit from `AbstractValidator` and register them with the container (open generics are not supported).
+### Automatic Registration
+
+You can also use the `AddFromAssemblyContaining` method to automatically register all validators within a particular assembly. This will automatically find any public, non-abstract types that inherit from `AbstractValidator` and register them with the container (open generics are not supported).
 
 ```csharp
 services.AddMvc()
   .AddFluentValidation(fv => fv.RegisterValidatorsFromAssemblyContaining<PersonValidator>());
 ```
 
-```eval_rst
-.. note::
-  Validators that are registered automatically using `RegisterValidationsFromAssemblyContaining` are registered as `Transient` with the container. You can choose to register them as a different lifetime by instead using the extension method `AddValidatorsFromAssemblyContaining`, or by explicitly registering individual validators with the container instead of auto-registering.
+Validators that are registered automatically using `RegisterValidationsFromAssemblyContaining` are registered as `Transient` with the container rather than as `Singleton`. This is done to avoid lifecycle scoping issues where a developer may inadvertantly cause a singleton-scoped validator from depending on a Transient or Request-scoped service (for example, a DB context). If you are aware of these kind of issues and understand how to avoid them, then you may choose to regiter the validators as singletons instead, which will give a performance boost by passing in a second argument: `fv.RegisterValidatorsFromAssemblyContaining<PersonValidator>(lifetime: ServiceLifetime.Singleton)` (note that this optional parameter is only available in FluentValidation 9.0 or newer).
+
+You can also optionally prevent certain types from being automatically registered when using this approach by passing a filter to `RegisterValidationsFromAssemblyContaining`. For example, if there is a specific validator type that you don't want to be registered, you can use a filter callback to exclude it:
+
+```csharp
+services.AddMvc()
+  .AddFluentValidation(fv => fv.RegisterValidatorsFromAssemblyContaining<PersonValidator>(discoveredType => discoveredType.ValidatorType != typeof(SomeValidatorToExclude)));
 ```
 
-This example assumes that the PersonValidator is defined to validate a class called `Person`:
+### Using the validator in a controller
+
+This next example assumes that the `PersonValidator` is defined to validate a class called `Person`. Once you've configured FluentValidation, ASP.NET will then automatically validate incoming requests using the validator mappings configured in your startup routine.
 
 ```csharp
 public class Person {
@@ -66,7 +75,6 @@ public class PersonValidator : AbstractValidator<Person> {
 	}
 }
 ```
-
 
 We can use the Person class within our controller and associated view:
 
@@ -115,7 +123,7 @@ public class PeopleController : Controller {
 
 Now when you post the form, MVC's model-binding infrastructure will validate the `Person` object with the `PersonValidator`, and add the validation results to ModelState.
 
-*Note for advanced users* When validators are executed using this automatic integration, the [RootContextData](/advanced.html#root-context-data) contains an entry called `InvokedByMvc` with a value set to true, which can be used within custom validators to tell whether a validator was invoked automatically (by MVC), or manually.
+*Note for advanced users* When validators are executed using this automatic integration, the [RootContextData](advanced.html#root-context-data) contains an entry called `InvokedByMvc` with a value set to true, which can be used within custom validators to tell whether a validator was invoked automatically (by MVC), or manually.
 
 ### Compatibility with ASP.NET's built-in Validation
 
@@ -133,7 +141,7 @@ services.AddMvc().AddFluentValidation(fv => {
 
 ### Implicit vs Explicit Child Property Validation
 
-When validating complex object graphs, by default, you must explicitly specify any child validators for complex properties by using `SetValidator` ([see the section on validating complex properties](/start.html#complex-properties))
+When validating complex object graphs, by default, you must explicitly specify any child validators for complex properties by using `SetValidator` ([see the section on validating complex properties](start.html#complex-properties))
 
 When running an ASP.NET MVC application, you can also optionally enable implicit validation for child properties. When this is enabled, instead of having to specify child validators using `SetValidator`, MVC's validation infrastructure will recursively attempt to automatically find validators for each property. This can be done by setting `ImplicitlyValidateChildProperties` to true:
 

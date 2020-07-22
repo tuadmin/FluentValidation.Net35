@@ -14,7 +14,7 @@ The following platforms are supported:
 * .NET Core 2.0+
 * `.NET Standard 2.0+ <https://docs.microsoft.com/en-us/dotnet/standard/net-standard>`_
 
-For automatic validation with ASP.NET, FluentValidation supports ASP.NET Core 2.1+ (3.1 recommended)
+For automatic validation with ASP.NET, FluentValidation supports ASP.NET Core 2.1 and 3.1.
 
 If you're new to using FluentValidation, check out the :doc:`start` page.
 
@@ -44,7 +44,7 @@ Example
   :caption: Getting Started
 
   installation
-  start 
+  start
   collections
   rulesets
   including-rules
@@ -58,7 +58,9 @@ Example
 
   configuring
   conditions
-
+  severity
+  error-codes
+  custom-state
 
 .. _validator-docs:
 .. toctree::
@@ -85,12 +87,12 @@ Example
 .. _aspnet-docs:
 .. toctree::
   :maxdepth: 1
-  :caption: ASP.NET Integration 
+  :caption: ASP.NET Integration
 
   aspnet
   mvc5
   webapi
-  
+
 .. _advanced-docs:
 .. toctree::
   :maxdepth: 1

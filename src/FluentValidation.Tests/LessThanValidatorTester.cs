@@ -72,6 +72,21 @@ namespace FluentValidation.Tests {
 		}
 
 		[Fact]
+		public void Comparison_property_uses_custom_resolver() {
+			var originalResolver = ValidatorOptions.Global.DisplayNameResolver;
+
+			try {
+				ValidatorOptions.Global.DisplayNameResolver = (type, member, expr) => member.Name + "Foo";
+				var validator = new TestValidator(v => v.RuleFor(x => x.Id).LessThan(x => x.AnotherInt).WithMessage("{ComparisonProperty}"));
+				var result = validator.Validate(new Person { Id = 2, AnotherInt = 1 });
+				result.Errors[0].ErrorMessage.ShouldEqual("AnotherIntFoo");
+			}
+			finally {
+				ValidatorOptions.Global.DisplayNameResolver = originalResolver;
+			}
+		}
+
+		[Fact]
 		public void Should_throw_when_value_to_compare_is_null() {
 			Expression<Func<Person, int>> nullExpression = null;
 			typeof(ArgumentNullException).ShouldBeThrownBy(() =>

@@ -237,7 +237,7 @@ namespace FluentValidation.Tests {
 			IValidator nonGenericValidator = validator;
 
 			typeof(InvalidOperationException).ShouldBeThrownBy(() =>
-				nonGenericValidator.Validate("foo"));
+				nonGenericValidator.Validate(new ValidationContext<string>("foo")));
 		}
 
 		[Fact]
