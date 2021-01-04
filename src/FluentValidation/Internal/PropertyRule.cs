@@ -32,13 +32,18 @@ namespace FluentValidation.Internal {
 	/// Defines a rule associated with a property.
 	/// </summary>
 	public class PropertyRule : IValidationRule {
-		readonly List<IPropertyValidator> _validators = new List<IPropertyValidator>();
-		Func<CascadeMode> _cascadeModeThunk = () => ValidatorOptions.CascadeMode;
-		string _propertyDisplayName;
-		string _propertyName;
+		private readonly List<IPropertyValidator> _validators = new List<IPropertyValidator>();
+		private Func<CascadeMode> _cascadeModeThunk;
+		private string _propertyDisplayName;
+		private string _propertyName;
 		private string[] _ruleSet = new string[0];
 		private Func<IValidationContext, bool> _condition;
 		private Func<IValidationContext, CancellationToken, Task<bool>> _asyncCondition;
+
+#pragma warning disable 618
+		//TODO: Replace with Func<IValidationContext, string> for FV 10.
+		private IStringSource _displayNameSource;
+#pragma warning restore 618
 
 		/// <summary>
 		/// Condition for all validators in this rule.
@@ -58,7 +63,7 @@ namespace FluentValidation.Internal {
 		/// <summary>
 		/// Function that can be invoked to retrieve the value of the property.
 		/// </summary>
-		public Func<object, object> PropertyFunc { get; private protected set; }
+		public Func<object, object> PropertyFunc { get; }
 
 		/// <summary>
 		/// Expression that was used to create the rule.
@@ -68,7 +73,32 @@ namespace FluentValidation.Internal {
 		/// <summary>
 		/// String source that can be used to retrieve the display name (if null, falls back to the property name)
 		/// </summary>
-		public IStringSource DisplayName { get; set; }
+		[Obsolete("This property is deprecated and will be removed in FluentValidation 10. Use the GetDisplayName and SetDisplayName instead.")]
+		public IStringSource DisplayName {
+			get => _displayNameSource;
+			set => _displayNameSource = value;
+		}
+
+		/// <summary>
+		/// Sets the display name for the property.
+		/// </summary>
+		/// <param name="name">The property's display name</param>
+		public void SetDisplayName(string name) {
+#pragma warning disable 618
+			_displayNameSource = new StaticStringSource(name);
+#pragma warning restore 618
+		}
+
+		/// <summary>
+		/// Sets the display name for the property using a function.
+		/// </summary>
+		/// <param name="factory">The function for building the display name</param>
+		public void SetDisplayName(Func<IValidationContext, string> factory) {
+			if (factory == null) throw new ArgumentNullException(nameof(factory));
+#pragma warning disable 618
+			_displayNameSource = new BackwardsCompatibleStringSource<IValidationContext>(factory);
+#pragma warning restore 618
+		}
 
 		/// <summary>
 		/// Rule set that this rule belongs to (if specified)
@@ -123,15 +153,17 @@ namespace FluentValidation.Internal {
 			_cascadeModeThunk = cascadeModeThunk;
 
 			DependentRules = new List<IValidationRule>();
-			PropertyName = ValidatorOptions.PropertyNameResolver(containerType, member, expression);
-			DisplayName = new LazyStringSource(x =>  ValidatorOptions.DisplayNameResolver(containerType, member, expression));
+			PropertyName = ValidatorOptions.Global.PropertyNameResolver(containerType, member, expression);
+#pragma warning disable 618
+			_displayNameSource = new BackwardsCompatibleStringSource<IValidationContext>(context => ValidatorOptions.Global.DisplayNameResolver(containerType, member, expression));
+#pragma warning restore 618
 		}
 
 		/// <summary>
 		/// Creates a new property rule from a lambda expression.
 		/// </summary>
 		public static PropertyRule Create<T, TProperty>(Expression<Func<T, TProperty>> expression) {
-			return Create(expression, () => ValidatorOptions.CascadeMode);
+			return Create(expression, () => ValidatorOptions.Global.CascadeMode);
 		}
 
 		/// <summary>
@@ -195,35 +227,27 @@ namespace FluentValidation.Internal {
 		/// <summary>
 		/// Dependent rules
 		/// </summary>
-		public List<IValidationRule> DependentRules { get; private set; }
+		public List<IValidationRule> DependentRules { get; }
 
 		public Func<object, object> Transformer { get; set; }
 
 		/// <summary>
 		/// Display name for the property.
 		/// </summary>
+		[Obsolete("Calling GetDisplayName without a context parameter is deprecated and will be removed in FluentValidation 10. If you really need this behaviour, you can call the overload that takes a context but pass in null.")]
 		public string GetDisplayName() {
-			string result = null;
-
-			if (DisplayName != null) {
-				result = DisplayName.GetString(null /*We don't have a model object at this point*/);
-			}
-
-			if (result == null) {
-				result = _propertyDisplayName;
-			}
-
-			return result;
+			return GetDisplayName(null);
 		}
 
 		/// <summary>
 		/// Display name for the property.
 		/// </summary>
 		public string GetDisplayName(ICommonContext context) {
+			//TODO: For FV10, change the parameter from ICommonContext to IValidationContext.
 			string result = null;
 
-			if (DisplayName != null) {
-				result = DisplayName.GetString(context);
+			if (_displayNameSource != null) {
+				result = _displayNameSource.GetString(context);
 			}
 
 			if (result == null) {
@@ -297,7 +321,9 @@ namespace FluentValidation.Internal {
 
 				// If there has been at least one failure, and our CascadeMode has been set to StopOnFirst
 				// then don't continue to the next rule
+#pragma warning disable 618
 				if (hasFailure && (cascade == CascadeMode.StopOnFirstFailure || cascade == CascadeMode.Stop)) {
+#pragma warning restore 618
 					break;
 				}
 			}
@@ -383,7 +409,9 @@ namespace FluentValidation.Internal {
 
 				// If there has been at least one failure, and our CascadeMode has been set to StopOnFirst
 				// then don't continue to the next rule
+#pragma warning disable 618
 				if (hasFailure && (cascade == CascadeMode.StopOnFirstFailure || cascade == CascadeMode.Stop)) {
+#pragma warning restore 618
 					break;
 				}
 			}
@@ -429,8 +457,8 @@ namespace FluentValidation.Internal {
 				propertyContext = new PropertyValidatorContext(context, this, propertyName);
 #pragma warning restore 618
 			}
-			if (validator.Options.Condition != null && !validator.Options.Condition(propertyContext)) return Enumerable.Empty<ValidationFailure>();
-			if (validator.Options.AsyncCondition != null && !await validator.Options.AsyncCondition(propertyContext, cancellation)) return Enumerable.Empty<ValidationFailure>();
+			if (!validator.Options.InvokeCondition(propertyContext)) return Enumerable.Empty<ValidationFailure>();
+			if (!await validator.Options.InvokeAsyncCondition(propertyContext, cancellation)) return Enumerable.Empty<ValidationFailure>();
 			return await validator.ValidateAsync(propertyContext, cancellation);
 		}
 
@@ -448,7 +476,7 @@ namespace FluentValidation.Internal {
 				propertyContext = new PropertyValidatorContext(context, this, propertyName);
 #pragma warning restore 618
 			}
-			if (validator.Options.Condition != null && !validator.Options.Condition(propertyContext)) return Enumerable.Empty<ValidationFailure>();
+			if (!validator.Options.InvokeCondition(propertyContext)) return Enumerable.Empty<ValidationFailure>();
 			return validator.Validate(propertyContext);
 		}
 

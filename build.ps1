@@ -21,7 +21,6 @@ $solution_file = Join-Path $path "FluentValidation.sln"
 $nuget_key = Resolve-Path "~/Dropbox/nuget-access-key.txt" -ErrorAction Ignore
 
 target default -depends compile, test, deploy
-target ci -depends install-dotnet-core, default
 
 target compile {
   Invoke-Dotnet build $solution_file -c $configuration --no-incremental
@@ -32,20 +31,13 @@ target test {
 }
 
 target deploy {
+  Remove-Item $packages_dir -Force -Recurse -ErrorAction Ignore 2> $null
+  Remove-Item $output_dir -Force -Recurse -ErrorAction Ignore 2> $null
+
   Invoke-Dotnet pack $solution_file -c $configuration
 }
 
-target verify-package {
-  Get-ChildItem $output_dir -Recurse *.dll | ForEach {
-    $asm = $_.FullName
-    if (! (verify_assembly $asm)) {
-      throw "$asm is not signed"
-    }
-  }
-  write-host Package verified
-}
-
-target publish -depends verify-package {
+target publish {
   $interactive = $true
   $key = $Env:NUGET_API_KEY
 
@@ -60,43 +52,7 @@ target publish -depends verify-package {
     throw "NUGET_API_KEY or local key not set"
   }
 
-  # Find all the packages and display them for confirmation
-  $packages = dir $packages_dir -Filter "*.nupkg"
-  write-host "Packages to upload:"
-  $packages | ForEach-Object { write-host $_.Name }
-
-  if ($interactive) {
-    # Ensure we haven't run this by accident.
-    $proceed = New-Prompt "Upload Packages" "Do you want to upload the NuGet packages to the NuGet server?" @(
-      @("&No", "Does not upload the packages."),
-      @("&Yes", "Uploads the packages.")
-    )
-  }
-  else {
-    $proceed = 1;
-  }
-
-  # Cancelled
-  if ($proceed -eq 0) {
-    "Upload aborted"
-  }
-  # upload
-  elseif ($proceed -eq 1) {
-    $packages | foreach {
-      $package = $_.FullName
-      Write-Host "Uploading $package"
-      Invoke-Dotnet nuget push $package --api-key $key --source "https://www.nuget.org/api/v2/package"
-      Write-Host
-    }
-  }
-}
-
-function verify_assembly($path) {
-  $asm = [System.Reflection.Assembly]::LoadFile($path);
-  $asmName = $asm.GetName().ToString();
-  $search = "PublicKeyToken="
-  $token = $asmName.Substring($asmName.IndexOf($search) + $search.Length)
-  return $token -eq "7de548da2fbae0f0";
+  Nuget-Push -directory $packages_dir -key $key -prompt $interactive
 }
 
 Start-Build $targets

@@ -102,7 +102,7 @@ namespace FluentValidation.Tests {
 					.OverrideIndexer((x, collection, element, index) => {
 						return "<" + index + ">";
 					})
-					.MustAsync(async (x, elem, ct) => elem != null)
+					.MustAsync((x, elem, ct) => Task.FromResult(elem != null))
 			};
 
 			var person = new Person {
@@ -222,10 +222,12 @@ namespace FluentValidation.Tests {
 		[Fact]
 		public void Can_use_cascade_with_RuleForEach() {
 			var validator = new InlineValidator<Person>();
+#pragma warning disable 618
 			validator.RuleForEach(x => x.NickNames)
 				.Cascade(CascadeMode.StopOnFirstFailure)
 				.NotNull()
 				.NotEqual("foo");
+#pragma warning restore 618
 
 			var result = validator.Validate(new Person {NickNames = new string[] {null}});
 			result.Errors.Count.ShouldEqual(1);
@@ -362,7 +364,9 @@ namespace FluentValidation.Tests {
 				v => v.RuleForEach(x => x.Orders).SetValidator(new OrderValidator())
 			};
 
+#pragma warning disable 618
 			var results = validator.Validate(_person, x => x.Orders);
+#pragma warning restore 618
 			results.Errors.Count.ShouldEqual(2);
 		}
 
@@ -373,7 +377,9 @@ namespace FluentValidation.Tests {
 				v => v.RuleForEach(x => x.Orders).SetValidator(new OrderValidator())
 			};
 
+#pragma warning disable 618
 			var results = validator.Validate(_person, "Orders");
+#pragma warning restore 618
 			results.Errors.Count.ShouldEqual(2);
 		}
 
@@ -384,7 +390,9 @@ namespace FluentValidation.Tests {
 				v => v.RuleForEach(x => x.Orders).SetValidator(new OrderValidator())
 			};
 
+#pragma warning disable 618
 			var results = validator.Validate(_person, x => x.Forename);
+#pragma warning restore 618
 			results.Errors.Count.ShouldEqual(0);
 		}
 
@@ -401,7 +409,7 @@ namespace FluentValidation.Tests {
 		[Fact]
 	    public async System.Threading.Tasks.Task Async_condition_should_work_with_child_collection() {
 	        var validator = new TestValidator() {
-	                                                v => v.RuleForEach(x => x.Orders).SetValidator(new OrderValidator()).WhenAsync(async (x,c) => x.Orders.Count == 3 /*there are only 2*/)
+	                                                v => v.RuleForEach(x => x.Orders).SetValidator(new OrderValidator()).WhenAsync( (x,c) => Task.FromResult(x.Orders.Count == 3) /*there are only 2*/)
 	                                            };
 
 	        var result = await validator.ValidateAsync(_person);

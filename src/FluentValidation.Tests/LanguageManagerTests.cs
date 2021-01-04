@@ -33,10 +33,8 @@
 		}
 
 		[Fact]
-		public void Gets_translation_for_croatian_culture()
-		{
-			using (new CultureScope("hr-HR"))
-			{
+		public void Gets_translation_for_croatian_culture() {
+			using (new CultureScope("hr-HR")) {
 				var msg = _languages.GetStringForValidator<NotNullValidator>();
 				msg.ShouldEqual("Niste upisali '{PropertyName}'");
 			}
@@ -78,10 +76,12 @@
 
 		[Fact]
 		public void Always_use_specific_language_with_string_source() {
-			ValidatorOptions.LanguageManager.Culture = new CultureInfo("fr-FR");
+			ValidatorOptions.Global.LanguageManager.Culture = new CultureInfo("fr-FR");
+#pragma warning disable 618
 			var stringSource = new LanguageStringSource(nameof(NotNullValidator));
+#pragma warning restore 618
 			var msg = stringSource.GetString(null);
-			ValidatorOptions.LanguageManager.Culture = null;
+			ValidatorOptions.Global.LanguageManager.Culture = null;
 
 			msg.ShouldEqual("'{PropertyName}' ne doit pas avoir la valeur null.");
 		}
@@ -97,8 +97,7 @@
 
 		[Fact]
 		public void Can_replace_message() {
-			using (new CultureScope("en-US")) {
-
+			using (new CultureScope("fr-FR")) {
 				var custom = new CustomLanguageManager();
 				var msg = custom.GetStringForValidator<NotNullValidator>();
 				msg.ShouldEqual("foo");
@@ -108,7 +107,6 @@
 		[Fact]
 		public void Can_replace_message_without_overriding_all_languages() {
 			using (new CultureScope("fr-FR")) {
-
 				var custom = new LanguageManager();
 				custom.AddTranslation("fr", "NotNullValidator", "foo");
 				var msg = custom.GetStringForValidator<NotNullValidator>();
@@ -124,42 +122,88 @@
 
 		[Fact]
 		public void All_localizations_have_same_parameters_as_English() {
-			// We don't expose the language instances publicly as they're an implementation detail, so have to do a bit of
-			// reflection hackery to check all translations across all languages.
 
-			// Get all language instances.
-			var languages = typeof(LanguageManager).Assembly.GetTypes()
-				.Where(t => typeof(Language).IsAssignableFrom(t) && !t.IsAbstract && t.Name != "GenericLanguage")
-				.Select(t => (Language) Activator.CreateInstance(t)).ToList();
+			// Remember to update this test if new validators are added.
+			string[] keys = {
+#pragma warning disable 618
+				nameof(EmailValidator),
+#pragma warning restore 618
+				nameof(GreaterThanOrEqualValidator),
+				nameof(GreaterThanValidator),
+				nameof(LengthValidator),
+				nameof(MinimumLengthValidator),
+				nameof(MaximumLengthValidator),
+				nameof(LessThanOrEqualValidator),
+				nameof(LessThanValidator),
+				nameof(NotEmptyValidator),
+				nameof(NotEqualValidator),
+				nameof(NotNullValidator),
+				nameof(PredicateValidator),
+				nameof(AsyncPredicateValidator),
+				nameof(RegularExpressionValidator),
+				nameof(EqualValidator),
+				nameof(ExactLengthValidator),
+				nameof(InclusiveBetweenValidator),
+				nameof(ExclusiveBetweenValidator),
+				nameof(CreditCardValidator),
+				nameof(ScalePrecisionValidator),
+				nameof(EmptyValidator),
+				nameof(NullValidator),
+				nameof(EnumValidator),
+				"Length_Simple",
+				"MinimumLength_Simple",
+				"MaximumLength_Simple",
+				"ExactLength_Simple",
+				"InclusiveBetween_Simple",
+			};
 
-			var languageNames = languages.Select(l => l.Name);
 
-			var english = languages.Single(x => x.Name == "en");
+			var query = from type in typeof(LanguageManager).Assembly.GetTypes()
+				where type.Namespace == "FluentValidation.Resources" && !type.IsPublic
+				let cultureField = type.GetField("Culture", BindingFlags.Public | BindingFlags.Static)
+				where cultureField != null && cultureField.IsLiteral
+				select cultureField.GetValue(null);
 
-			// Get the underlying dictionary.
-			var translations = (Dictionary<string, string>) typeof(Language).GetField("_translations", BindingFlags.Instance | BindingFlags.NonPublic)
-				.GetValue(english);
-			var keys = translations.Keys;
+			var languageNames = query.Cast<string>().ToList();
 
 #if NET35
-      AssertEx
+			AssertEx
 #else
-      Assert
+			Assert
 #endif
-      .All(languageNames, l =>
+				.All(languageNames, l =>
 #if NET35
-      AssertEx
+       			AssertEx
 #else
-      Assert
+		      	Assert
 #endif
-      .All(keys, k => CheckParametersMatch(l, k)));
+					.All(keys, k => CheckParametersMatch(l, k))
+				);
+
+			void CheckParametersMatch(string languageCode, string translationKey) {
+				var referenceMessage = _languages.GetString(translationKey, new CultureInfo("en-US"));
+				var translatedMessage = _languages.GetString(translationKey, new CultureInfo(languageCode));
+				if (referenceMessage == translatedMessage) return;
+				var referenceParameters = ExtractTemplateParameters(referenceMessage).ToArray();
+				var translatedParameters = ExtractTemplateParameters(translatedMessage).ToArray();
+				Assert.False(referenceParameters.Count() != translatedParameters.Count() ||
+				             referenceParameters.Except(translatedParameters).Any(),
+					$"Translation for language {languageCode}, key {translationKey} has parameters {string.Join(",", translatedParameters)}, expected {string.Join(",", referenceParameters)}");
+			}
+
+			IEnumerable<string> ExtractTemplateParameters(string message) {
+				message = message.Replace("{{", "").Replace("}}", "");
+				return message.Split('{').Skip(1).Select(s => s.Split('}').First());
+			}
 		}
 
 		[Fact]
 		public void All_languages_should_be_loaded() {
-			var languages = typeof(LanguageManager).Assembly.GetTypes()
-				.Where(t => typeof(Language).IsAssignableFrom(t) && !t.IsAbstract && t.Name != "GenericLanguage")
-				.Select(t => (Language) Activator.CreateInstance(t));
+			var languages = from type in typeof(LanguageManager).Assembly.GetTypes()
+				where type.Namespace == "FluentValidation.Resources" && !type.IsPublic
+				let cultureField = type.GetField("Culture", BindingFlags.Public | BindingFlags.Static)
+				where cultureField != null && cultureField.IsLiteral
+				select new { Name = cultureField.GetValue(null) as string, Type = type.Name };
 
 			string englishMessage = _languages.GetString(nameof(NotNullValidator), new CultureInfo("en"));
 
@@ -172,65 +216,48 @@
 				// Get the message from the language manager from the culture. If it's in English, then it's hit the
 				// fallback and means the culture hasn't been loaded.
 				string message = _languages.GetString(nameof(NotNullValidator), new CultureInfo(language.Name));
-				(message != englishMessage).ShouldBeTrue($"Language '{language.Name}' ({language.GetType().Name}) is not loaded in the LanguageManager");
+				(message != englishMessage).ShouldBeTrue($"Language '{language.Name}' ({language.Type}) is not loaded in the LanguageManager");
 			}
 		}
 
 		[Fact]
 		public void Uses_error_code_as_localization_key() {
-			var originalLanguageManager = ValidatorOptions.LanguageManager;
-			ValidatorOptions.LanguageManager = new CustomLanguageManager();
+			var originalLanguageManager = ValidatorOptions.Global.LanguageManager;
+			ValidatorOptions.Global.LanguageManager = new CustomLanguageManager();
 
-			var validator = new InlineValidator<Person>();
-			validator.RuleFor(x => x.Forename).NotNull().WithErrorCode("CustomKey");
-			var result = validator.Validate(new Person());
+			using (new CultureScope("fr-FR")) {
+				var validator = new InlineValidator<Person>();
+				validator.RuleFor(x => x.Forename).NotNull().WithErrorCode("CustomKey");
+				var result = validator.Validate(new Person());
 
-			ValidatorOptions.LanguageManager = originalLanguageManager;
+				ValidatorOptions.Global.LanguageManager = originalLanguageManager;
 
-			result.Errors[0].ErrorMessage.ShouldEqual("bar");
+				result.Errors[0].ErrorMessage.ShouldEqual("bar");
+			}
 		}
 
 		[Fact]
 		public void Falls_back_to_default_localization_key_when_error_code_key_not_found() {
-			var originalLanguageManager = ValidatorOptions.LanguageManager;
-			ValidatorOptions.LanguageManager = new CustomLanguageManager();
-			ValidatorOptions.LanguageManager.Culture = new CultureInfo("en-US");
+			var originalLanguageManager = ValidatorOptions.Global.LanguageManager;
+			ValidatorOptions.Global.LanguageManager = new CustomLanguageManager();
+			ValidatorOptions.Global.LanguageManager.Culture = new CultureInfo("fr-FR");
 			var validator = new InlineValidator<Person>();
 			validator.RuleFor(x => x.Forename).NotNull().WithErrorCode("DoesNotExist");
 			var result = validator.Validate(new Person());
 
-			ValidatorOptions.LanguageManager = originalLanguageManager;
+			ValidatorOptions.Global.LanguageManager = originalLanguageManager;
 
 			result.Errors[0].ErrorMessage.ShouldEqual("foo");
 		}
 
-		void CheckParametersMatch(string languageCode, string translationKey) {
-			var referenceMessage = _languages.GetString(translationKey);
-			var translatedMessage = _languages.GetString(translationKey, new CultureInfo(languageCode));
-			if (referenceMessage == translatedMessage) return;
-			var referenceParameters = ExtractTemplateParameters(referenceMessage);
-			var translatedParameters = ExtractTemplateParameters(translatedMessage);
-			Assert.False(referenceParameters.Count() != translatedParameters.Count() ||
-				referenceParameters.Except(translatedParameters).Any(),
-				$"Translation for language {languageCode}, key {translationKey} has parameters {string.Join(",", translatedParameters.ToArray())}, expected {string.Join(",", referenceParameters.ToArray())}");
-		}
-
-		IEnumerable<string> ExtractTemplateParameters(string message) {
-			message = message.Replace("{{", "").Replace("}}", "");
-			return message.Split('{').Skip(1).Select(s => s.Split('}').First());
-		}
-
 		public class CustomLanguageManager : LanguageManager {
 			public CustomLanguageManager() {
-				AddTranslation("en", "NotNullValidator", "foo");
-				AddTranslation("en", "CustomKey", "bar");
+				AddTranslation("fr", "NotNullValidator", "foo");
+				AddTranslation("fr", "CustomKey", "bar");
 			}
 		}
 
 		private class TestValidator : PropertyValidator {
-			public TestValidator(IStringSource errorMessageSource) : base(errorMessageSource) {
-			}
-
 			public TestValidator(string errorMessage) : base(errorMessage) {
 			}
 

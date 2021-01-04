@@ -45,7 +45,7 @@ services.AddMvc()
   .AddFluentValidation(fv => fv.RegisterValidatorsFromAssemblyContaining<PersonValidator>());
 ```
 
-Validators that are registered automatically using `RegisterValidationsFromAssemblyContaining` are registered as `Transient` with the container rather than as `Singleton`. This is done to avoid lifecycle scoping issues where a developer may inadvertantly cause a singleton-scoped validator from depending on a Transient or Request-scoped service (for example, a DB context). If you are aware of these kind of issues and understand how to avoid them, then you may choose to regiter the validators as singletons instead, which will give a performance boost by passing in a second argument: `fv.RegisterValidatorsFromAssemblyContaining<PersonValidator>(lifetime: ServiceLifetime.Singleton)` (note that this optional parameter is only available in FluentValidation 9.0 or newer).
+Validators that are registered automatically using `RegisterValidationsFromAssemblyContaining` are registered as `Transient` with the container rather than as `Singleton`. This is done to avoid lifecycle scoping issues where a developer may inadvertantly cause a singleton-scoped validator from depending on a Transient or Request-scoped service (for example, a DB context). If you are aware of these kind of issues and understand how to avoid them, then you may choose to register the validators as singletons instead, which will give a performance boost by passing in a second argument: `fv.RegisterValidatorsFromAssemblyContaining<PersonValidator>(lifetime: ServiceLifetime.Singleton)` (note that this optional parameter is only available in FluentValidation 9.0 or newer).
 
 You can also optionally prevent certain types from being automatically registered when using this approach by passing a filter to `RegisterValidationsFromAssemblyContaining`. For example, if there is a specific validator type that you don't want to be registered, you can use a filter callback to exclude it:
 
@@ -189,7 +189,7 @@ public ActionResult DoSomething() {
 }
 ```
 
-The AddToModelState method is implemented as an extension method, and requires a using statement for the FluentValidation namespace. Note that the second parameter is an optional model name, which will cause property names in the ModelState to be prefixed (eg a call to AddToModelState(ModelState, "Foo") will generate property names of "Foo.Id" and "Foo.Name" etc rather than just "Id" or "Name")
+The `AddToModelState` method is implemented as an extension method, and requires a using statement for the `FluentValidation.AspNetCore` namespace. Note that the second parameter is an optional model name, which will cause property names in the ModelState to be prefixed (eg a call to `AddToModelState(ModelState, "Foo")` will generate property names of "Foo.Id" and "Foo.Name" etc rather than just "Id" or "Name")
 
 ### Validator customization
 
@@ -237,7 +237,7 @@ public ActionResult Save([CustomizeValidator(Skip=true)] Customer cust) {
 
 ### Validator Interceptors
 
-You can further customize this process by using an interceptor. An interceptor has to implement the IValidatorInterceptor interface from the FluentValidation.Mvc namespace:
+You can further customize this process by using an interceptor. An interceptor has to implement the IValidatorInterceptor interface from the FluentValidation.AspNetCore namespace:
 
 ```csharp
 public interface IValidatorInterceptor	{
@@ -290,7 +290,7 @@ public ActionResult Index() {
 }
 ```
 
-You can also use the `SetRulesetForClientsideMessages` extension method within your controller action (you must have the FluentValidation.Mvc namespace imported):
+You can also use the `SetRulesetForClientsideMessages` extension method within your controller action:
 
 ```csharp
 public ActionResult Index() {
@@ -335,10 +335,19 @@ Please be aware that `InjectValidator` can *only* be used when using automatic v
 
 ### Use with Page Models
 
-Configuration for use with ASP.NET Web Pages and PageModels is exactly the same as with MVC above, but there are several limitations:
+Configuration for use with ASP.NET Razor Pages and PageModels is exactly the same as with MVC above, but there are several limitations:
 
 - You can't define a validator for the whole page-model, only for models exposed as properties on the page model.
-- The `[CustomizeValidator]` attribute is not supported
-- the `[RuleSetForClientSideMessages]` attribute is not supported
+- The `[CustomizeValidator]` attribute is not supported on .net core 2.1 (only 3.1 and 5.0)
+- The `[RuleSetForClientSideMessages]` attribute is not supported on .net core 2.1 (only 3.1 and 5.0)
 
-These are limitations of ASP.NET Web Pages and are not currently something that FluentValidation can work around.
+You can also use the `SetRulesetForClientsideMessages` extension method within your page handler:
+
+```csharp
+public IActionResult OnGet() {
+   PageContext.SetRulesetForClientsideMessages("MyRuleset");
+   return Page();
+}
+```
+
+These are limitations of ASP.NET Razor Pages and are not currently something that FluentValidation can work around.

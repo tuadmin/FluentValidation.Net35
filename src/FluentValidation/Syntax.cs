@@ -22,25 +22,24 @@ namespace FluentValidation {
 	using Internal;
 	using Validators;
 
-  /// <summary>
-  /// Rule builder that starts the chain
-  /// </summary>
-  /// <typeparam name="T"></typeparam>
-  /// <typeparam name="TProperty"></typeparam>
+	/// <summary>
+	/// Rule builder that starts the chain
+	/// </summary>
+	/// <typeparam name="T"></typeparam>
+	/// <typeparam name="TProperty"></typeparam>
 #if NET35
   public interface IRuleBuilderInitial<T, TProperty> : IRuleBuilder<T, TProperty>, IConfigurable<PropertyRule, IRuleBuilderInitial<T, TProperty>> {
 #else
   public interface IRuleBuilderInitial<T, out TProperty> : IRuleBuilder<T, TProperty>, IConfigurable<PropertyRule, IRuleBuilderInitial<T, TProperty>> {
 #endif
-    /// <summary>
-    /// Transforms the property value before validation occurs.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <typeparam name="TProperty"></typeparam>
-    /// <typeparam name="TNew"></typeparam>
-    /// <param name="transformationFunc"></param>
-    /// <returns></returns>
-    IRuleBuilderInitial<T, TNew> Transform<TNew>(Func<TProperty, TNew> transformationFunc);
+
+		/// <summary>
+		/// Transforms the property value before validation occurs.
+		/// </summary>
+		/// <typeparam name="TNew"></typeparam>
+		/// <param name="transformationFunc"></param>
+		/// <returns></returns>
+		IRuleBuilderInitial<T, TNew> Transform<TNew>(Func<TProperty, TNew> transformationFunc);
 	}
 
   /// <summary>

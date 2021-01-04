@@ -38,10 +38,6 @@ namespace FluentValidation.Validators {
 		}
 
 		public override IEnumerable<ValidationFailure> Validate(PropertyValidatorContext context) {
-			if (Options.Condition != null && !Options.Condition(context)) {
-				return Enumerable.Empty<ValidationFailure>();
-			}
-
 			if (context.PropertyValue == null) {
 				return Enumerable.Empty<ValidationFailure>();
 			}
@@ -68,14 +64,6 @@ namespace FluentValidation.Validators {
 		}
 
 		public override async Task<IEnumerable<ValidationFailure>> ValidateAsync(PropertyValidatorContext context, CancellationToken cancellation) {
-			if (Options.Condition != null && !Options.Condition(context)) {
-				return Enumerable.Empty<ValidationFailure>();
-			}
-
-			if (Options.AsyncCondition != null && !await Options.AsyncCondition(context, cancellation)) {
-				return Enumerable.Empty<ValidationFailure>();
-			}
-
 			if (context.PropertyValue == null) {
 				return Enumerable.Empty<ValidationFailure>();
 			}
@@ -130,7 +118,7 @@ namespace FluentValidation.Validators {
 		}
 
 		public override bool ShouldValidateAsynchronously(IValidationContext context) {
-			return context.IsAsync() || Options.AsyncCondition != null;
+			return context.IsAsync() || Options.HasAsyncCondition;
 		}
 
 		private void HandleCollectionIndex(PropertyValidatorContext context, out object originalIndex, out object index) {

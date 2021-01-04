@@ -49,8 +49,14 @@ namespace FluentValidation.Tests {
 		public async Task New_Custom_Returns_single_failure_async() {
 			validator
 				.RuleFor(x => x)
-				.CustomAsync(async (x, context, cancel) => {
+				.CustomAsync((x, context, cancel) => {
 					context.AddFailure("Surname", "Fail");
+					return
+#if NET35
+					TaskEx.FromResult(0);
+#else
+					Task.CompletedTask;
+#endif
 				});
 
 			var result = await validator.ValidateAsync(new Person());
@@ -86,7 +92,9 @@ namespace FluentValidation.Tests {
 				});
 			});
 
+#pragma warning disable 618
 			var result = validator.Validate(new Person(), ruleSet: "foo");
+#pragma warning restore 618
 			result.Errors.Count.ShouldEqual(1);
 		}
 
@@ -95,18 +103,32 @@ namespace FluentValidation.Tests {
 			var validator = new InlineValidator<Person>();
 
 			validator.RuleSet("foo", () => {
-				validator.RuleFor(x => x).CustomAsync(async (x, ctx,cancel) => {
+				validator.RuleFor(x => x).CustomAsync((x, ctx,cancel) => {
 					ctx.AddFailure("x", "y");
+					return
+#if NET35
+					TaskEx.FromResult(0);
+#else
+					Task.CompletedTask;
+#endif
 				});
 			});
 
 			validator.RuleSet("bar", () => {
-				validator.RuleFor(x => x).CustomAsync(async (x, ctx,cancel) => {
+				validator.RuleFor(x => x).CustomAsync((x, ctx,cancel) => {
 					ctx.AddFailure("x", "y");
+					return
+#if NET35
+					TaskEx.FromResult(0);
+#else
+					Task.CompletedTask;
+#endif
 				});
 			});
 
+#pragma warning disable 618
 			var result = await validator.ValidateAsync(new Person(), ruleSet: "foo");
+#pragma warning restore 618
 			result.Errors.Count.ShouldEqual(1);
 		}
 
@@ -144,7 +166,15 @@ namespace FluentValidation.Tests {
 
 		[Fact]
 		public void Runs_async_rule_synchronously_when_validator_invoked_synchronously() {
-			validator.RuleFor(x => x.Forename).CustomAsync(async (x, context, cancel) => context.AddFailure("foo"));
+			validator.RuleFor(x => x.Forename).CustomAsync((x, context, cancel) => {
+				context.AddFailure("foo");
+				return
+#if NET35
+					TaskEx.FromResult(0);
+#else
+					Task.CompletedTask;
+#endif
+			});
 			var result = validator.Validate(new Person());
 			result.Errors.Count.ShouldEqual(1);
 		}
