@@ -46,6 +46,7 @@ Example
   installation
   start
   collections
+  inheritance
   rulesets
   including-rules
   upgrading-to-9
@@ -92,6 +93,7 @@ Example
   aspnet
   mvc5
   webapi
+  blazor
 
 .. _advanced-docs:
 .. toctree::

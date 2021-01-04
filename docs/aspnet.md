@@ -125,6 +125,11 @@ Now when you post the form, MVC's model-binding infrastructure will validate the
 
 *Note for advanced users* When validators are executed using this automatic integration, the [RootContextData](advanced.html#root-context-data) contains an entry called `InvokedByMvc` with a value set to true, which can be used within custom validators to tell whether a validator was invoked automatically (by MVC), or manually.
 
+```eval_rst
+.. warning::
+  You should not use asynchronous rules when using ASP.NET automatic validation as ASP.NET's validation pipeline is not asynchronous.
+```
+
 ### Compatibility with ASP.NET's built-in Validation
 
 By default, after FluentValidation is executed, any other validator providers will also have a chance to execute. This means you can mix FluentValidation with DataAnnotations attributes (or any other ASP.NET ModelValidatorProvider implementation).
@@ -203,7 +208,7 @@ This is the equivalent of specifying the ruleset if you were to pass a ruleset n
 ```csharp
 var validator = new CustomerValidator();
 var customer = new Customer();
-var result = validator.Validate(customer, ruleSet: "MyRuleset");
+var result = validator.Validate(customer, options => options.IncludeRuleSet("MyRuleset"));
 ```
 
 The attribute can also be used to invoke validation for individual properties:
@@ -218,7 +223,7 @@ public ActionResult Save([CustomizeValidator(Properties="Surname,Forename")] Cus
 ```csharp
 var validator = new CustomerValidator();
 var customer = new Customer();
-var result = validator.Validate(customer, properties: new[] { "Surname", "Forename" });
+var result = validator.Validate(customer, options => options.IncludeProperties("Surname", "Forename"));
 ```
 
 You can also use the CustomizeValidatorAttribute to skip validation for a particular type. This is useful for if you need to validate a type manually (for example, if you want to perform async validation then you'll need to instantiate the validator manually and call ValidateAsync as MVC's validation pipeline is not asynchronous).

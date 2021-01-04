@@ -19,11 +19,15 @@
 namespace FluentValidation.Tests {
 	using System;
 	using System.Linq;
+	using System.Threading.Tasks;
 	using Internal;
 	using Results;
 	using Validators;
 	using Xunit;
 
+#if NET35
+	using Task = System.Threading.Tasks.TaskEx;
+#endif
 
 	public class RulesetTests {
 
@@ -232,6 +236,120 @@ namespace FluentValidation.Tests {
 			var result = validator.Validate(new Person(), ruleSet: "default");
 			result.Errors.Count.ShouldEqual(2);
 			AssertExecuted(result, "default");
+		}
+
+		[Fact]
+		public void Combines_rulesets_and_explicit_properties() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Forename).NotNull();
+			validator.RuleFor(x => x.Surname).NotNull();
+			validator.RuleSet("Test", () => {
+				validator.RuleFor(x => x.Age).GreaterThan(0);
+			});
+
+			var result = validator.Validate(new Person(), options => {
+				options.IncludeRuleSets("Test");
+				options.IncludeProperties(x => x.Forename);
+			});
+
+			result.Errors.Count.ShouldEqual(2);
+			result.Errors[0].PropertyName.ShouldEqual("Forename");
+			result.Errors[1].PropertyName.ShouldEqual("Age");
+		}
+
+		[Fact]
+		public async System.Threading.Tasks.Task Combines_rulesets_and_explicit_properties_async() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Forename).MustAsync((x,t) => Task.FromResult(x != null));
+			validator.RuleFor(x => x.Surname).MustAsync((x,t) => Task.FromResult(x != null));
+			validator.RuleSet("Test", () => {
+				validator.RuleFor(x => x.Age).MustAsync((x,t) => Task.FromResult(x > 0));
+			});
+
+			var result = await validator.ValidateAsync(new Person(), options => {
+				options.IncludeRuleSets("Test");
+				options.IncludeProperties(x => x.Forename);
+			});
+
+			result.Errors.Count.ShouldEqual(2);
+			result.Errors[0].PropertyName.ShouldEqual("Forename");
+			result.Errors[1].PropertyName.ShouldEqual("Age");
+		}
+
+		[Fact]
+		public void Includes_combination_of_rulesets() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Forename).NotNull();
+			validator.RuleSet("Test1", () => {
+				validator.RuleFor(x => x.Surname).NotNull();
+			});
+			validator.RuleSet("Test2", () => {
+				validator.RuleFor(x => x.Age).GreaterThan(0);
+			});
+
+			var result = validator.Validate(new Person(), options => {
+				options.IncludeRuleSets("Test1").IncludeRulesNotInRuleSet();
+			});
+
+			result.Errors.Count.ShouldEqual(2);
+			result.Errors[0].PropertyName.ShouldEqual("Forename");
+			result.Errors[1].PropertyName.ShouldEqual("Surname");
+		}
+
+		[Fact]
+		public async System.Threading.Tasks.Task Includes_combination_of_rulesets_async() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Forename).MustAsync((x,t) => Task.FromResult(x != null));
+			validator.RuleSet("Test1", () => {
+				validator.RuleFor(x => x.Surname).MustAsync((x,t) => Task.FromResult(x != null));
+			});
+			validator.RuleSet("Test2", () => {
+				validator.RuleFor(x => x.Age).MustAsync((x,t) => Task.FromResult(x > 0));
+			});
+
+			var result = await validator.ValidateAsync(new Person(), options => {
+				options.IncludeRuleSets("Test1").IncludeRulesNotInRuleSet();
+			});
+
+			result.Errors.Count.ShouldEqual(2);
+			result.Errors[0].PropertyName.ShouldEqual("Forename");
+			result.Errors[1].PropertyName.ShouldEqual("Surname");
+		}
+
+		[Fact]
+		public void Includes_all_rulesets() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Forename).NotNull();
+			validator.RuleSet("Test1", () => {
+				validator.RuleFor(x => x.Surname).NotNull();
+			});
+			validator.RuleSet("Test2", () => {
+				validator.RuleFor(x => x.Age).GreaterThan(0);
+			});
+
+			var result = validator.Validate(new Person(), options => {
+				options.IncludeAllRuleSets();
+			});
+
+			result.Errors.Count.ShouldEqual(3);
+		}
+
+		[Fact]
+		public async System.Threading.Tasks.Task Includes_all_rulesets_async() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Forename).MustAsync((x,t) => Task.FromResult(x != null));
+			validator.RuleSet("Test1", () => {
+				validator.RuleFor(x => x.Surname).MustAsync((x,t) => Task.FromResult(x != null));
+			});
+			validator.RuleSet("Test2", () => {
+				validator.RuleFor(x => x.Age).MustAsync((x,t) => Task.FromResult(x > 0));
+			});
+
+			var result = await validator.ValidateAsync(new Person(), options => {
+				options.IncludeAllRuleSets();
+			});
+
+			result.Errors.Count.ShouldEqual(3);
 		}
 
 		private void AssertExecuted(ValidationResult result, params string[] names) {

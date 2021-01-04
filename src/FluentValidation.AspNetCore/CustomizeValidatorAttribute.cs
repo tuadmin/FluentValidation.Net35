@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 // Copyright (c) .NET Foundation and contributors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,6 +22,7 @@ namespace FluentValidation.AspNetCore {
 	using System.Reflection;
 	using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 	using Microsoft.Extensions.DependencyInjection;
+	using System.Linq;
 
 	[AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false)]
 	public class CustomizeValidatorAttribute : Attribute {
@@ -56,11 +57,15 @@ namespace FluentValidation.AspNetCore {
 			IValidatorSelector selector;
 
 			if (!string.IsNullOrEmpty(RuleSet)) {
-				var rulesets = RuleSet.Split(',', ';');
+				var rulesets = RuleSet.Split(',', ';')
+					.Select(x => x.Trim())
+					.ToArray();
 				selector = CreateRulesetValidatorSelector(mvContext, rulesets);
 			}
 			else if (!string.IsNullOrEmpty(Properties)) {
-				var properties = Properties.Split(',', ';');
+				var properties = Properties.Split(',', ';')
+					.Select(x => x.Trim())
+					.ToArray();
 				selector = CreateMemberNameValidatorSelector(mvContext, properties);
 			}
 			else {
@@ -90,6 +95,7 @@ namespace FluentValidation.AspNetCore {
 			if (Interceptor == null) return null;
 
 			if (!typeof(IValidatorInterceptor) .GetTypeInfo().IsAssignableFrom(Interceptor)) {
+				if (typeof(IActionContextValidatorInterceptor).GetTypeInfo().IsAssignableFrom(Interceptor)) return null;
 				throw new InvalidOperationException("Type {0} is not an IValidatorInterceptor. The Interceptor property of CustomizeValidatorAttribute must implement IValidatorInterceptor.");
 			}
 
@@ -97,6 +103,23 @@ namespace FluentValidation.AspNetCore {
 
 			if (instance == null) {
 				throw new InvalidOperationException("Type {0} is not an IValidatorInterceptor. The Interceptor property of CustomizeValidatorAttribute must implement IValidatorInterceptor.");
+			}
+
+			return instance;
+		}
+
+		internal IActionContextValidatorInterceptor GetActionContextInterceptor() {
+			if (Interceptor == null) return null;
+
+			if (!typeof(IActionContextValidatorInterceptor) .GetTypeInfo().IsAssignableFrom(Interceptor)) {
+				if (typeof(IValidatorInterceptor).GetTypeInfo().IsAssignableFrom(Interceptor)) return null;
+				throw new InvalidOperationException("Type {0} is not an IActionContextValidatorInterceptor. The Interceptor property of CustomizeValidatorAttribute must implement IActionContextValidatorInterceptor.");
+			}
+
+			var instance = Activator.CreateInstance(Interceptor) as IActionContextValidatorInterceptor;
+
+			if (instance == null) {
+				throw new InvalidOperationException("Type {0} is not an IActionContextValidatorInterceptor. The Interceptor property of CustomizeValidatorAttribute must implement IActionContextValidatorInterceptor.");
 			}
 
 			return instance;

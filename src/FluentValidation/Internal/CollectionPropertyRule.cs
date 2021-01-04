@@ -81,7 +81,16 @@ namespace FluentValidation.Internal {
 				propertyName = InferPropertyName(Expression);
 			}
 
-			var propertyContext = new PropertyValidatorContext(context, this, propertyName);
+			PropertyValidatorContext propertyContext;
+			// TODO: For FV10 this will come as a parameter rather than in RootContextData.
+			if (context.RootContextData.TryGetValue("__FV_CurrentAccessor", out var a) && a is Lazy<object> accessor) {
+				propertyContext = new PropertyValidatorContext(context, this, propertyName, accessor);
+			}
+			else {
+#pragma warning disable 618
+				propertyContext = new PropertyValidatorContext(context, this, propertyName);
+#pragma warning restore 618
+			}
 
 			if (validator.Options.Condition != null && !validator.Options.Condition(propertyContext)) return Enumerable.Empty<ValidationFailure>();
 			if (validator.Options.AsyncCondition != null && !await validator.Options.AsyncCondition(propertyContext, cancellation)) return Enumerable.Empty<ValidationFailure>();
@@ -95,8 +104,8 @@ namespace FluentValidation.Internal {
 
 				var actualContext = ValidationContext<T>.GetFromNonGenericContext(context);
 
-				var validatorTasks = collectionPropertyValue.Select(async (v, index) => {
-					if (Filter != null && !Filter(v)) {
+				var validatorTasks = collectionPropertyValue.Select(async (element, index) => {
+					if (Filter != null && !Filter(element)) {
 						return Enumerable.Empty<ValidationFailure>();
 					}
 
@@ -104,7 +113,7 @@ namespace FluentValidation.Internal {
 					bool useDefaultIndexFormat = true;
 
 					if (IndexBuilder != null) {
-						indexer = IndexBuilder(context.InstanceToValidate, collectionPropertyValue, v, index);
+						indexer = IndexBuilder(context.InstanceToValidate, collectionPropertyValue, element, index);
 						useDefaultIndexFormat = false;
 					}
 
@@ -112,7 +121,13 @@ namespace FluentValidation.Internal {
 					newContext.PropertyChain.Add(propertyName);
 					newContext.PropertyChain.AddIndexer(indexer, useDefaultIndexFormat);
 
-					var newPropertyContext = new PropertyValidatorContext(newContext, this, newContext.PropertyChain.ToString(), v);
+					object valueToValidate = element;
+
+					if (Transformer != null) {
+						valueToValidate = Transformer(element);
+					}
+
+					var newPropertyContext = new PropertyValidatorContext(newContext, this, newContext.PropertyChain.ToString(), valueToValidate);
 					newPropertyContext.MessageFormatter.AppendArgument("CollectionIndex", index);
 
 					return await validator.ValidateAsync(newPropertyContext, cancellation);
@@ -153,9 +168,20 @@ namespace FluentValidation.Internal {
 				propertyName = InferPropertyName(Expression);
 			}
 
-			var propertyContext = new PropertyValidatorContext(context, this, propertyName);
+			PropertyValidatorContext propertyContext;
+			// TODO: For FV10 this will come as a parameter rather than in RootContextData.
+			if (context.RootContextData.TryGetValue("__FV_CurrentAccessor", out var a) && a is Lazy<object> accessor) {
+				propertyContext = new PropertyValidatorContext(context, this, propertyName, accessor);
+			}
+			else {
+#pragma warning disable 618
+				propertyContext = new PropertyValidatorContext(context, this, propertyName);
+#pragma warning restore 618
+			}
 
 			if (validator.Options.Condition != null && !validator.Options.Condition(propertyContext)) return Enumerable.Empty<ValidationFailure>();
+			// There's no need to check for the AsyncCondition here. If the validator has an async condition, then
+			// the parent PropertyRule will call InvokePropertyValidatorAsync instead.
 
 			var results = new List<ValidationFailure>();
 			var collectionPropertyValue = propertyContext.PropertyValue as IEnumerable<TElement>;
@@ -188,7 +214,13 @@ namespace FluentValidation.Internal {
 					newContext.PropertyChain.Add(propertyName);
 					newContext.PropertyChain.AddIndexer(indexer, useDefaultIndexFormat);
 
-					var newPropertyContext = new PropertyValidatorContext(newContext, this, newContext.PropertyChain.ToString(), element);
+					object valueToValidate = element;
+
+					if (Transformer != null) {
+						valueToValidate = Transformer(element);
+					}
+
+					var newPropertyContext = new PropertyValidatorContext(newContext, this, newContext.PropertyChain.ToString(), valueToValidate);
 					newPropertyContext.MessageFormatter.AppendArgument("CollectionIndex", index);
 					results.AddRange(validator.Validate(newPropertyContext));
 				}
@@ -197,5 +229,10 @@ namespace FluentValidation.Internal {
 			return results;
 		}
 
+		internal override object GetPropertyValue(object instanceToValidate) {
+			// Unlike the base class, we do not want to perform the transformation in here, just return the raw value.
+			// with collection rules, the transformation should be applied to individual elements instead.
+			return PropertyFunc(instanceToValidate);
+		}
 	}
 }

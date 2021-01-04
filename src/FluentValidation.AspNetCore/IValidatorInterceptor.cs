@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 // Copyright (c) .NET Foundation and contributors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");

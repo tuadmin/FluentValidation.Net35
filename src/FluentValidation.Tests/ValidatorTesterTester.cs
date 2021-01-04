@@ -671,6 +671,112 @@ namespace FluentValidation.Tests {
 			result.ShouldNotHaveValidationErrorFor("Orders[0].ProductName");
 		}
 
+		[Fact]
+		public async System.Threading.Tasks.Task TestValidate_runs_async() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(false));
+			var result = await validator.TestValidateAsync(new Person());
+			result.ShouldHaveValidationErrorFor(x => x.Surname);
+		}
+
+		[Fact]
+		public async System.Threading.Tasks.Task TestValidate_runs_async_throws() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(false));
+			var result = await validator.TestValidateAsync(new Person());
+			Assert.Throws<ValidationTestException>(() => {
+				result.ShouldNotHaveValidationErrorFor(x => x.Surname);
+			});
+		}
+
+		[Fact]
+		public async System.Threading.Tasks.Task ShouldHaveValidationError_async() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(false));
+			await validator.ShouldHaveValidationErrorForAsync(x => x.Surname, null as string);
+		}
+
+		[Fact]
+		public async System.Threading.Tasks.Task ShouldHaveValidationError_async_throws() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(true));
+			await
+#if NET35
+				AssertEx
+#else
+				Assert
+#endif
+				.ThrowsAsync<ValidationTestException>(async () =>
+					{	await validator.ShouldHaveValidationErrorForAsync(x => x.Surname, null as string);
+			});
+		}
+
+		[Fact]
+		public async System.Threading.Tasks.Task ShouldNotHaveValidationError_async() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(true));
+			await validator.ShouldNotHaveValidationErrorForAsync(x => x.Surname, null as string);
+		}
+
+		[Fact]
+		public async System.Threading.Tasks.Task ShouldNotHaveValidationError_async_throws() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(false));
+			await
+#if NET35
+				AssertEx
+#else
+				Assert
+#endif
+				.ThrowsAsync<ValidationTestException>(async () => {
+					await validator.ShouldNotHaveValidationErrorForAsync(x => x.Surname, null as string);
+			});
+		}
+
+		[Fact]
+		public async System.Threading.Tasks.Task ShouldHaveValidationError_model_async() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(false));
+			await validator.ShouldHaveValidationErrorForAsync(x => x.Surname, new Person());
+		}
+
+		[Fact]
+		public async System.Threading.Tasks.Task ShouldHaveValidationError_model_async_throws() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(true));
+			await
+#if NET35
+				AssertEx
+#else
+				Assert
+#endif
+				.ThrowsAsync<ValidationTestException>(async () => {
+					await validator.ShouldHaveValidationErrorForAsync(x => x.Surname, new Person());
+			});
+		}
+
+		[Fact]
+		public async System.Threading.Tasks.Task ShouldNotHaveValidationError_model_async() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(true));
+			await validator.ShouldNotHaveValidationErrorForAsync(x => x.Surname, new Person());
+		}
+
+		[Fact]
+		public async System.Threading.Tasks.Task ShouldNotHaveValidationError_async_model_throws() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(false));
+			await
+#if NET35
+				AssertEx
+#else
+				Assert
+#endif
+				.ThrowsAsync<ValidationTestException>(async () => {
+				await validator.ShouldNotHaveValidationErrorForAsync(x => x.Surname, new Person());
+			});
+		}
+
 		private class AddressValidator : AbstractValidator<Address> {
 		}
 

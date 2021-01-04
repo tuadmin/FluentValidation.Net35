@@ -89,13 +89,27 @@ namespace FluentValidation {
 
 			EnsureInstanceNotNull(context.InstanceToValidate);
 
-			var failures = Rules.SelectMany(x => x.Validate(context));
+			foreach (var rule in Rules) {
+				var failures = rule.Validate(context);
 
-			foreach (var validationFailure in failures.Where(failure => failure != null)) {
-				result.Errors.Add(validationFailure);
+				foreach (var validationFailure in failures.Where(failure => failure != null)) {
+					result.Errors.Add(validationFailure);
+				}
+
+				if (CascadeMode == CascadeMode.Stop && result.Errors.Count > 0) {
+					// Bail out if we're "failing-fast".
+					// Check for > 0 rather than == 1 because a rule chain may have overridden the Stop behaviour to Continue
+					// meaning that although the first rule failed, it actually generated 2 failures if there were 2 validators
+					// in the chain.
+					break;
+				}
 			}
 
 			SetExecutedRulesets(result, context);
+
+			if (!result.IsValid && context.ThrowOnFailures) {
+				RaiseValidationException(context, result);
+			}
 
 			return result;
 		}
@@ -127,15 +141,27 @@ namespace FluentValidation {
 				foreach (var failure in failures.Where(f => f != null)) {
 					result.Errors.Add(failure);
 				}
+
+				if (CascadeMode == CascadeMode.Stop && result.Errors.Count > 0) {
+					// Bail out if we're "failing-fast".
+					// Check for > 0 rather than == 1 because a rule chain may have overridden the Stop behaviour to Continue
+					// meaning that although the first rule failed, it actually generated 2 failures if there were 2 validators
+					// in the chain.
+					break;
+				}
 			}
 
 			SetExecutedRulesets(result, context);
+
+			if (!result.IsValid && context.ThrowOnFailures) {
+				RaiseValidationException(context, result);
+			}
 
 			return result;
 		}
 
 		private void SetExecutedRulesets(ValidationResult result, ValidationContext<T> context) {
-			var executed = context.RootContextData.GetOrAdd("_FV_RuleSetsExecuted", () => new HashSet<string>{"default"});
+			var executed = context.RootContextData.GetOrAdd("_FV_RuleSetsExecuted", () => new HashSet<string>{RulesetValidatorSelector.DefaultRuleSetName});
 			result.RuleSetsExecuted = executed.ToArray();
 		}
 
@@ -336,6 +362,17 @@ namespace FluentValidation {
 		/// <returns></returns>
 		protected virtual bool PreValidate(ValidationContext<T> context, ValidationResult result) {
 			return true;
+		}
+
+		/// <summary>
+		/// Throws a ValidationException. This method will only be called if the validator has been configured
+		/// to throw exceptions if validation fails. The default behaviour is not to throw an exception.
+		/// </summary>
+		/// <param name="context"></param>
+		/// <param name="result"></param>
+		/// <exception cref="ValidationException"></exception>
+		protected virtual void RaiseValidationException(ValidationContext<T> context, ValidationResult result) {
+			throw new ValidationException(result.Errors);
 		}
 	}
 }

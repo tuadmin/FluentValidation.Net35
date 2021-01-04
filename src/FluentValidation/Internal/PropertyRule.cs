@@ -58,7 +58,7 @@ namespace FluentValidation.Internal {
 		/// <summary>
 		/// Function that can be invoked to retrieve the value of the property.
 		/// </summary>
-		public Func<object, object> PropertyFunc { get; }
+		public Func<object, object> PropertyFunc { get; private protected set; }
 
 		/// <summary>
 		/// Expression that was used to create the rule.
@@ -270,9 +270,16 @@ namespace FluentValidation.Internal {
 
 			var cascade = _cascadeModeThunk();
 			var failures = new List<ValidationFailure>();
+			var accessor = new Lazy<object>(() => GetPropertyValue(context.InstanceToValidate), LazyThreadSafetyMode.None);
 
 			// Invoke each validator and collect its results.
 			foreach (var validator in _validators) {
+				// TODO: For FV 10 don't store the accessor in the context. Instead add it as an argument to InvokePropertyValidator
+				// Do not do this in 9.x as it'd be a breaking change.
+				// This must be done *inside* the foreach loop to ensure it's reset for each iteration of the loop.
+				// child validators will have replaced it, so ensure it's reset for each iteration.
+				context.RootContextData["__FV_CurrentAccessor"] = accessor;
+
 				IEnumerable<ValidationFailure> results;
 				if (validator.ShouldValidateAsynchronously(context))
 					//TODO: For FV 9 by default disallow invocation of async validators when running synchronously.
@@ -290,7 +297,7 @@ namespace FluentValidation.Internal {
 
 				// If there has been at least one failure, and our CascadeMode has been set to StopOnFirst
 				// then don't continue to the next rule
-				if (cascade == FluentValidation.CascadeMode.StopOnFirstFailure && hasFailure) {
+				if (hasFailure && (cascade == CascadeMode.StopOnFirstFailure || cascade == CascadeMode.Stop)) {
 					break;
 				}
 			}
@@ -349,10 +356,17 @@ namespace FluentValidation.Internal {
 
 			var cascade = _cascadeModeThunk();
 			var failures = new List<ValidationFailure>();
+			var accessor = new Lazy<object>(() => GetPropertyValue(context.InstanceToValidate), LazyThreadSafetyMode.None);
 
 			// Invoke each validator and collect its results.
 			foreach (var validator in _validators) {
 				cancellation.ThrowIfCancellationRequested();
+
+				// TODO: For FV 10 don't store the accessor in the context. Instead add it as an argument to InvokePropertyValidator
+				// Do not do this in 9.x as it'd be a breaking change.
+				// This must be done *inside* the foreach loop to ensure it's reset for each iteration of the loop.
+				// child validators will have replaced it, so ensure it's reset for each iteration.
+				context.RootContextData["__FV_CurrentAccessor"] = accessor;
 
 				IEnumerable<ValidationFailure> results;
 				if (validator.ShouldValidateAsynchronously(context))
@@ -369,7 +383,7 @@ namespace FluentValidation.Internal {
 
 				// If there has been at least one failure, and our CascadeMode has been set to StopOnFirst
 				// then don't continue to the next rule
-				if (cascade == FluentValidation.CascadeMode.StopOnFirstFailure && hasFailure) {
+				if (hasFailure && (cascade == CascadeMode.StopOnFirstFailure || cascade == CascadeMode.Stop)) {
 					break;
 				}
 			}
@@ -405,7 +419,16 @@ namespace FluentValidation.Internal {
 		/// <param name="cancellation"></param>
 		/// <returns></returns>
 		protected virtual async Task<IEnumerable<ValidationFailure>> InvokePropertyValidatorAsync(IValidationContext context, IPropertyValidator validator, string propertyName, CancellationToken cancellation) {
-			var propertyContext = new PropertyValidatorContext(context, this, propertyName);
+			// TODO: For FV10 accept the accessor as a parameter. Don't change in 9.x as this is a breaking change.
+			PropertyValidatorContext propertyContext;
+			if (context.RootContextData.TryGetValue("__FV_CurrentAccessor", out var a) && a is Lazy<object> accessor) {
+				propertyContext = new PropertyValidatorContext(context, this, propertyName, accessor);
+			}
+			else {
+#pragma warning disable 618
+				propertyContext = new PropertyValidatorContext(context, this, propertyName);
+#pragma warning restore 618
+			}
 			if (validator.Options.Condition != null && !validator.Options.Condition(propertyContext)) return Enumerable.Empty<ValidationFailure>();
 			if (validator.Options.AsyncCondition != null && !await validator.Options.AsyncCondition(propertyContext, cancellation)) return Enumerable.Empty<ValidationFailure>();
 			return await validator.ValidateAsync(propertyContext, cancellation);
@@ -415,9 +438,29 @@ namespace FluentValidation.Internal {
 		/// Invokes a property validator using the specified validation context.
 		/// </summary>
 		protected virtual IEnumerable<ValidationFailure> InvokePropertyValidator(IValidationContext context, IPropertyValidator validator, string propertyName) {
-			var propertyContext = new PropertyValidatorContext(context, this, propertyName);
+			// TODO: For FV10 accept the accessor as a parameter. Don't change in 9.x as this is a breaking change.
+			PropertyValidatorContext propertyContext;
+			if (context.RootContextData.TryGetValue("__FV_CurrentAccessor", out var a) && a is Lazy<object> accessor) {
+				propertyContext = new PropertyValidatorContext(context, this, propertyName, accessor);
+			}
+			else {
+#pragma warning disable 618
+				propertyContext = new PropertyValidatorContext(context, this, propertyName);
+#pragma warning restore 618
+			}
 			if (validator.Options.Condition != null && !validator.Options.Condition(propertyContext)) return Enumerable.Empty<ValidationFailure>();
 			return validator.Validate(propertyContext);
+		}
+
+		/// <summary>
+		/// Gets the property value, including any transformations that need to be applied.
+		/// </summary>
+		/// <param name="instanceToValidate">The parent object</param>
+		/// <returns>The value to be validated</returns>
+		internal virtual object GetPropertyValue(object instanceToValidate) {
+			var value = PropertyFunc(instanceToValidate);
+			if (Transformer != null) value = Transformer(value);
+			return value;
 		}
 
 		/// <summary>

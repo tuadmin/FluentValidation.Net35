@@ -17,7 +17,12 @@
 #endregion
 
 namespace FluentValidation.Tests {
+	using System.Collections.Generic;
+	using System.Threading.Tasks;
 	using Xunit;
+#if NET35
+	using Task = System.Threading.Tasks.TaskEx;
+#endif
 
 	public class TransformTests {
 		[Fact]
@@ -37,6 +42,28 @@ namespace FluentValidation.Tests {
 			var result = validator.Validate(new Person {Surname = "bar"});
 			result.IsValid.ShouldBeFalse();
 			result.Errors[0].ErrorCode.ShouldEqual("GreaterThanValidator");
+		}
+
+		[Fact]
+		public void Transforms_collection_element() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleForEach(x => x.Orders)
+				.Transform(order => order.Amount)
+				.GreaterThan(0);
+
+			var result = validator.Validate(new Person() {Orders = new List<Order> {new Order()}});
+			result.Errors.Count.ShouldEqual(1);
+		}
+
+		[Fact]
+		public async System.Threading.Tasks.Task Transforms_collection_element_async() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleForEach(x => x.Orders)
+				.Transform(order => order.Amount)
+				.MustAsync((amt, token) => Task.FromResult(amt > 0));
+
+			var result = await validator.ValidateAsync(new Person() {Orders = new List<Order> {new Order()}});
+			result.Errors.Count.ShouldEqual(1);
 		}
 
 	}
