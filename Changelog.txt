@@ -1,3 +1,15 @@
+9.5.1 - 11 February 2021
+Fix incorrect wording in deprecation message for Transform (#1613)
+Fix ScalePrecision validator being available in intellisense for non-decimal properties.
+Expose additional overload of Transform that receives the root object in the transformer.
+
+9.5.0 - 31 January 2021
+Introduce new syntax for applying transformations and deprecate the old syntax (#1613)
+
+9.4.0 - 14 January 2021
+ChildRules now work as expected when inside a ruleset (#1597)
+Added ImplicitlyValidateRootCollectionElements option to MVC integration (#1585)
+
 9.3.0 - 10 November 2020
 Support for .NET 5
 Improvements to LanguageManager's lazy loading of resources.

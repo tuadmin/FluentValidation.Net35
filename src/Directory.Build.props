@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <VersionPrefix>9.3.0</VersionPrefix>
+    <VersionPrefix>9.5.1</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <!-- Use CI build number as version suffix (if defined) -->
     <!--<VersionSuffix Condition="'$(GITHUB_RUN_NUMBER)'!=''">ci-$(GITHUB_RUN_NUMBER)</VersionSuffix>-->
@@ -18,13 +18,8 @@
     <AssemblyOriginatorKeyFile>$(MSBuildProjectDirectory)/../FluentValidation-Release.snk</AssemblyOriginatorKeyFile>
     <PackageOutputPath>$(MSBuildProjectDirectory)/../../.build/packages</PackageOutputPath>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
-  </PropertyGroup>
-  <PropertyGroup>
-    <FrameworkPathOverride Condition="'$(TargetFramework)|$(OS)' == 'net35|Windows_NT'">$(MSBuildProgramFiles32)\Reference Assemblies\Microsoft\Framework\.NETFramework\v3.5\Profile\Client</FrameworkPathOverride>
-    <FrameworkPathOverride Condition="'$(TargetFramework)|$(OS)' == 'net35|Unix'">$(MONO_DIR)/../lib/mono/2.0-api</FrameworkPathOverride>
-  </PropertyGroup>   
+  </PropertyGroup>  
   <ItemGroup>
     <None Include="..\..\logo\fluent-validation-icon.png" Pack="true" Visible="false" PackagePath="" />
   </ItemGroup>
- 
 </Project>
