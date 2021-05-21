@@ -1,3 +1,14 @@
+9.5.4 - 5 April 2021
+Fix Serbian translation of error messages (#1683)
+Add Vietnamese translations of error messages (#1677)
+
+9.5.3 - 15 March 2021
+Fix Swedish translation for CreditCardValidator (#1664)
+
+9.5.2 - 8 March 2021
+Fix Dutch translation of some errors (#1653)
+Fix string equality comparison in WithCustomState extension (#1658)
+
 9.5.1 - 11 February 2021
 Fix incorrect wording in deprecation message for Transform (#1613)
 Fix ScalePrecision validator being available in intellisense for non-decimal properties.
