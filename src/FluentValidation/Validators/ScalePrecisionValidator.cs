@@ -20,7 +20,6 @@
 
 namespace FluentValidation.Validators {
 	using System;
-	using Resources;
 
 	// Attribution: This class was contributed to FluentValidation using code posted on StackOverflow by Jon Skeet
 	// The original code can be found at https://stackoverflow.com/a/764102
@@ -36,10 +35,12 @@ namespace FluentValidation.Validators {
 	/// 123.4500 has an scale of 4 and a precision of 7, but an effective scale
 	/// and precision of 2 and 5 respectively.
 	/// </summary>
-	public class ScalePrecisionValidator : PropertyValidator {
+	public class ScalePrecisionValidator<T> : PropertyValidator<T, decimal> {
 		public ScalePrecisionValidator(int scale, int precision) {
 			Init(scale, precision);
 		}
+
+		public override string Name => "ScalePrecisionValidator";
 
 		public int Scale { get; set; }
 
@@ -47,25 +48,20 @@ namespace FluentValidation.Validators {
 
 		public bool IgnoreTrailingZeros { get; set; }
 
-		protected override bool IsValid(PropertyValidatorContext context) {
-			var decimalValue = context.PropertyValue as decimal?;
+		public override bool IsValid(ValidationContext<T> context, decimal decimalValue) {
+			var scale = GetScale(decimalValue);
+			var precision = GetPrecision(decimalValue);
+			var actualIntegerDigits = precision - scale;
+			var expectedIntegerDigits = Precision - Scale;
+			if (scale > Scale || actualIntegerDigits > expectedIntegerDigits) {
+				context.MessageFormatter
+					.AppendArgument("ExpectedPrecision", Precision)
+					.AppendArgument("ExpectedScale", Scale)
+					.AppendArgument("Digits", actualIntegerDigits < 0 ? 0 : actualIntegerDigits)
+					.AppendArgument("ActualScale", scale);
 
-			if (decimalValue.HasValue) {
-				var scale = GetScale(decimalValue.Value);
-				var precision = GetPrecision(decimalValue.Value);
-				var actualIntegerDigits = precision - scale;
-				var expectedIntegerDigits = Precision - Scale;
-				if (scale > Scale || actualIntegerDigits > expectedIntegerDigits) {
-					context.MessageFormatter
-						.AppendArgument("ExpectedPrecision", Precision)
-						.AppendArgument("ExpectedScale", Scale)
-						.AppendArgument("Digits", actualIntegerDigits)
-						.AppendArgument("ActualScale", scale);
-
-					return false;
-				}
+				return false;
 			}
-
 			return true;
 		}
 
@@ -88,7 +84,7 @@ namespace FluentValidation.Validators {
 		private static UInt32[] GetBits(decimal Decimal) {
 			// We want the integer parts as uint
 			// C# doesn't permit int[] to uint[] conversion, but .NET does. This is somewhat evil...
-			return (uint[]) (object) decimal.GetBits(Decimal);
+			return (uint[])(object)decimal.GetBits(Decimal);
 		}
 
 		private static decimal GetMantissa(decimal Decimal) {
@@ -105,10 +101,10 @@ namespace FluentValidation.Validators {
 		private int GetScale(decimal Decimal) {
 			uint scale = GetUnsignedScale(Decimal);
 			if (IgnoreTrailingZeros) {
-				return (int) (scale - NumTrailingZeros(Decimal));
+				return (int)(scale - NumTrailingZeros(Decimal));
 			}
 
-			return (int) scale;
+			return (int)scale;
 		}
 
 		private static uint NumTrailingZeros(decimal Decimal) {
@@ -129,14 +125,14 @@ namespace FluentValidation.Validators {
 			}
 
 			if (IgnoreTrailingZeros) {
-				return (int) (precision - NumTrailingZeros(Decimal));
+				return (int)(precision - NumTrailingZeros(Decimal));
 			}
 
-			return (int) precision;
+			return (int)precision;
 		}
 
-		protected override string GetDefaultMessageTemplate() {
-			return Localized(nameof(ScalePrecisionValidator));
+		protected override string GetDefaultMessageTemplate(string errorCode) {
+			return Localized(errorCode, Name);
 		}
 	}
 }

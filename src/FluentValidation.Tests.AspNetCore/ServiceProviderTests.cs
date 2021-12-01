@@ -3,8 +3,10 @@
 	using System.Net.Http;
 	using System.Threading.Tasks;
 	using Controllers;
+	using FluentValidation.AspNetCore;
 	using Microsoft.AspNetCore.Hosting;
 	using Microsoft.AspNetCore.TestHost;
+	using Microsoft.Extensions.DependencyInjection;
 	using Newtonsoft.Json;
 	using Xunit;
 
@@ -12,7 +14,12 @@
 		private readonly HttpClient _client;
 
 		public ServiceProviderTests(WebAppFixture webApp) {
-			_client = webApp.WithContainer().CreateClient();
+
+			_client = webApp.CreateClientWithServices(services => {
+				services.AddMvc().AddNewtonsoftJson().AddFluentValidation(fv => {
+					fv.RegisterValidatorsFromAssemblyContaining<TestController>();
+				});
+			});
 		}
 
 		[Fact]
@@ -28,7 +35,7 @@
 		}
 
 		[Fact]
-		public async Task Validators_should_be_transient() {
+		public async Task Validators_should_be_scoped() {
 			var result = await _client.GetErrors("Lifecycle", new FormData());
 			var hashCode1 = result.GetError("Foo");
 

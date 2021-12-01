@@ -16,7 +16,7 @@ RuleFor(customer => customer.Surname).NotNull().WithMessage("Please ensure you h
 
 ## Placeholders
 
-As specified in the example above, the message can contain placeholders for special values such as `{PropertyName}` - which will be replaced with a specified value. Each type of built-in validator has its own list of placeholders which are supported by it.
+As shown in the example above, the message can contain placeholders for special values such as `{PropertyName}` - which will be replaced at runtime. Each built-in validator has its own list of placeholders.
 
 The placeholders used in all validators are:
 * `{PropertyName}` – Name of the property being validated
@@ -31,12 +31,12 @@ Used only in the Length validator:
 * `{MaxLength}` – Maximum length
 * `{TotalLength}` – Number of characters entered
 
-For a complete list of error message placeholders see the the [Built in Validators page](built-in-validators). Each built in validator has its own supported placeholders.
+For a complete list of error message placeholders see the [Built in Validators page](built-in-validators). Each built in validator has its own supported placeholders.
 
 It is also possible to use your own custom arguments in the validation message. These can either be static values or references to other properties on the object being validated. This can be done by using the overload of `WithMessage` that takes a lambda expression, and then passing the values to `string.Format` or by using string interpolation.
 
 ```csharp
-//Using static values in a custom message:
+//Using constant in a custom message:
 RuleFor(customer => x.Surname)
   .NotNull()
   .WithMessage(customer => string.Format("This message references some constant values: {0} {1}", "hello", 5))
@@ -69,12 +69,12 @@ Now the error message would be *'Last name' must not be empty.*
 Note that this only replaces the name of the property in the error message. When you inspect the `Errors` collection on the `ValidationResult`, this error will still be associated with a property called `Surname`.
 If you want to completely rename the property, you can use the `OverridePropertyName` method instead.
 
-There is also an overload of `WithName` that accepts a lambda expression in a similar way to `WithName` in the above example
+There is also an overload of `WithName` that accepts a lambda expression in a similar way to `WithMessage` in the previous section.
 
 Property name resolution is also pluggable. By default, the name of the property extracted from the `MemberExpression` passed to `RuleFor`. If you want change this logic, you can set the `DisplayNameResolver` property on the `ValidatorOptions` class:
 
 ```csharp
-ValidatorOptions.DisplayNameResolver = (type, member, expression) => {
+ValidatorOptions.Global.DisplayNameResolver = (type, member, expression) => {
   if(member != null) {
      return member.Name + "Foo";
   }

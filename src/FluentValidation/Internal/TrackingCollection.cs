@@ -83,8 +83,8 @@ namespace FluentValidation.Internal {
 			readonly Action<T> _old;
 
 			public CaptureDisposable(TrackingCollection<T> parent, Action<T> handler) {
-				this._parent = parent;
-				this._old = parent._capture;
+				_parent = parent;
+				_old = parent._capture;
 				parent._capture = handler;
 			}
 

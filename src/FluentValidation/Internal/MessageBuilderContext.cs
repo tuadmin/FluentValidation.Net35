@@ -3,34 +3,42 @@
 	using Resources;
 	using Validators;
 
-	public class MessageBuilderContext : ICommonContext {
-		private PropertyValidatorContext _innerContext;
+#if NET35
+	public interface IMessageBuilderContext<T, TProperty> {
+#else
+	public interface IMessageBuilderContext<T, out TProperty> {
+#endif
+		IRuleComponent<T, TProperty> Component { get; }
+		IPropertyValidator PropertyValidator { get; }
+		ValidationContext<T> ParentContext { get; }
+		string PropertyName { get; }
+		string DisplayName { get; }
+		MessageFormatter MessageFormatter { get; }
+		T InstanceToValidate { get; }
+		TProperty PropertyValue { get; }
+		string GetDefaultMessage();
+	}
 
-		[Obsolete("This constructor will be removed in FluentValidation 10. Use the other one instead.")]
-		public MessageBuilderContext(PropertyValidatorContext innerContext, IStringSource errorSource, IPropertyValidator propertyValidator) {
+	public class MessageBuilderContext<T,TProperty> : IMessageBuilderContext<T,TProperty> {
+		private ValidationContext<T> _innerContext;
+		private TProperty _value;
+
+		public MessageBuilderContext(ValidationContext<T> innerContext, TProperty value, RuleComponent<T,TProperty> component) {
 			_innerContext = innerContext;
-			ErrorSource = errorSource;
-			PropertyValidator = propertyValidator;
+			_value = value;
+			Component = component;
 		}
 
-		public MessageBuilderContext(PropertyValidatorContext innerContext, IPropertyValidator propertyValidator) {
-			_innerContext = innerContext;
-			PropertyValidator = propertyValidator;
-			// TODO: For backwards compatibility (remove in FV10).
-#pragma warning disable 618
-			ErrorSource = PropertyValidator.Options.ErrorMessageSource;
-#pragma warning restore 618
-		}
+		public RuleComponent<T,TProperty> Component { get; }
 
+		IRuleComponent<T, TProperty> IMessageBuilderContext<T, TProperty>.Component => Component;
 
-		public IPropertyValidator PropertyValidator { get; }
+		public IPropertyValidator PropertyValidator
+			=> Component.Validator;
 
-		[Obsolete("This property is deprecated and will be removed in FluentValidation 10.")]
-		public IStringSource ErrorSource { get; }
+		public ValidationContext<T> ParentContext => _innerContext;
 
-		public IValidationContext ParentContext => _innerContext.ParentContext;
-
-		public PropertyRule Rule => _innerContext.Rule;
+		// public IValidationRule<T> Rule => _innerContext.Rule;
 
 		public string PropertyName => _innerContext.PropertyName;
 
@@ -38,18 +46,11 @@
 
 		public MessageFormatter MessageFormatter => _innerContext.MessageFormatter;
 
-		public object InstanceToValidate => _innerContext.InstanceToValidate;
-		public object PropertyValue => _innerContext.PropertyValue;
-
-		ICommonContext ICommonContext.ParentContext => ParentContext;
+		public T InstanceToValidate => _innerContext.InstanceToValidate;
+		public TProperty PropertyValue => _value;
 
 		public string GetDefaultMessage() {
-			return PropertyValidator.Options.GetErrorMessageTemplate(_innerContext);
+			return Component.GetErrorMessage(_innerContext, _value);
 		}
-
-		public static implicit operator PropertyValidatorContext(MessageBuilderContext ctx) {
-			return ctx._innerContext;
-		}
-
 	}
 }

@@ -21,7 +21,6 @@
 #pragma warning disable 618
 
 namespace FluentValidation.Resources {
-
 	internal class VietnameseLanguage {
 		public const string Culture = "vi";
 

@@ -19,15 +19,27 @@
 #endregion
 
 namespace FluentValidation.Tests.AspNetCore {
+	using System.Linq;
 	using System.Net.Http;
 	using System.Threading.Tasks;
+	using Controllers;
+	using FluentValidation.AspNetCore;
+	using Microsoft.AspNetCore.Http;
+	using Microsoft.Extensions.DependencyInjection;
 	using Xunit;
 
 	public class ClientsideMessageTester : IClassFixture<WebAppFixture> {
 		private readonly HttpClient _client;
 
 		public ClientsideMessageTester(WebAppFixture webApp) {
-			_client = webApp.WithContainer(enableLocalization:true).CreateClient();
+			_client = webApp.CreateClientWithServices(services => {
+				services.AddMvc().AddNewtonsoftJson().AddFluentValidation(fv => {
+					fv.RegisterValidatorsFromAssemblyContaining<TestController>();
+				});
+				services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+				services.AddScoped<ClientsideScopedDependency>();
+				services.AddLocalization(opts => { opts.ResourcesPath = "Resources"; });
+			});
 			CultureScope.SetDefaultCulture();
 		}
 
@@ -56,19 +68,19 @@ namespace FluentValidation.Tests.AspNetCore {
 		}
 
 		[Fact]
-		public async Task LengthValidator_uses_simplified_message_for_clientside_validatation() {
+		public async Task LengthValidator_uses_simplified_message_for_clientside_validation() {
 			var msg = await _client.GetClientsideMessage("Length", "data-val-length");
 			msg.ShouldEqual("'Length' must be between 1 and 4 characters.");
 		}
 
 		[Fact]
-		public async Task MinLengthValidator_uses_simplified_message_for_clientside_validatation() {
+		public async Task MinLengthValidator_uses_simplified_message_for_clientside_validation() {
 			var msg = await _client.GetClientsideMessage("MinLength", "data-val-minlength");
 			msg.ShouldEqual("The length of 'Min Length' must be at least 1 characters.");
 		}
 
 		[Fact]
-		public async Task MaxengthValidator_uses_simplified_message_for_clientside_validatation() {
+		public async Task MaxLengthValidator_uses_simplified_message_for_clientside_validation() {
 			var msg = await _client.GetClientsideMessage("MaxLength", "data-val-maxlength");
 			msg.ShouldEqual("The length of 'Max Length' must be 2 characters or fewer.");
 		}
@@ -121,13 +133,6 @@ namespace FluentValidation.Tests.AspNetCore {
 			var msg = await _client.GetClientsideMessage("LengthCustomPlaceholders", "data-val-length");
 			msg.ShouldEqual("Must be between 1 and 5.");
 		}
-
-		//TODO: Is there an IClientValidatable equivalent?
-//		[Fact]
-//		public async Task Supports_custom_clientside_rules_with_IClientValidatable() {
-//			validator.RuleFor(x => x.Name).SetValidator(new TestPropertyValidator());
-//			msg.ShouldEqual("foo");
-//		}
 
 		[Fact]
 		public async Task CreditCard_creates_clientside_message() {
@@ -211,6 +216,37 @@ namespace FluentValidation.Tests.AspNetCore {
 			var results = await _client.GetClientsideMessages();
 			ClientsideModelValidator.TimesInstantiated.ShouldEqual(1);
 		}
+
+		[Fact]
+		public async Task Shouldnt_generate_clientside_message_for_LessThanOrEqual_GreaterThanOrEqual_cross_property() {
+			// https://github.com/FluentValidation/FluentValidation/issues/1721
+			// A call to LessThanOrEqual(x => x.SomeOtherProperty) shouldn't generate clientside metadata.
+			var document = await _client.GetClientsideMessages();
+
+			var lessThan = document.Root.Elements("input")
+				.SingleOrDefault(x => x.Attribute("name").Value == "LessThanOrEqualProperty");
+
+			var greaterThan = document.Root.Elements("input")
+				.SingleOrDefault(x => x.Attribute("name").Value == "GreaterThanOrEqualProperty");
+
+			lessThan.Attribute("data-val-range").ShouldBeNull();
+			greaterThan.Attribute("data-val-range").ShouldBeNull();
+		}
+
+		[Fact]
+		public async Task Shouldnt_generate_clientside_message_for_LessThanOrEqual_GreaterThanOrEqual_func() {
+			// A call to LessThanOrEqual(x => DateTime.Now) shouldn't generate clientside metadata.
+			var document = await _client.GetClientsideMessages();
+
+			var lessThan = document.Root.Elements("input")
+				.SingleOrDefault(x => x.Attribute("name").Value == "LessThanOrEqualFunc");
+
+			var greaterThan = document.Root.Elements("input")
+				.SingleOrDefault(x => x.Attribute("name").Value == "GreaterThanOrEqualFunc");
+
+			lessThan.Attribute("data-val-range").ShouldBeNull();
+			greaterThan.Attribute("data-val-range").ShouldBeNull();
+		}
 	}
 
 
@@ -218,7 +254,15 @@ namespace FluentValidation.Tests.AspNetCore {
 		private readonly HttpClient _client;
 
 		public RazorPagesClientsideMessageTester(WebAppFixture webApp) {
-			_client = webApp.WithContainer(enableLocalization: true).CreateClient();
+			_client = webApp.CreateClientWithServices(services => {
+				services.AddMvc().AddNewtonsoftJson().AddFluentValidation(fv => {
+					fv.RegisterValidatorsFromAssemblyContaining<TestController>();
+				});
+				services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+				services.AddScoped<ClientsideScopedDependency>();
+				services.AddLocalization(opts => { opts.ResourcesPath = "Resources"; });
+			});;
+
 			CultureScope.SetDefaultCulture();
 		}
 

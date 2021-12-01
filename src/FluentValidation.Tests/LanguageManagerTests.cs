@@ -103,8 +103,8 @@
 			var validator = new InlineValidator<Person>();
 			validator.RuleFor(x => x.Surname).NotNull();
 
-			var propertyValidator = validator.First().Validators.First();
-			var msg = propertyValidator.Options.GetErrorMessageTemplate(null);
+			var component = (RuleComponent<Person,string>)validator.First().Components.First();
+			var msg = component.GetErrorMessage(null, null);
 			ValidatorOptions.Global.LanguageManager.Culture = null;
 
 			msg.ShouldEqual("'{PropertyName}' ne doit pas avoir la valeur null.");

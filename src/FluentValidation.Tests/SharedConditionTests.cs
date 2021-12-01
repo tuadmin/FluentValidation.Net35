@@ -281,7 +281,7 @@ namespace FluentValidation.Tests {
 			validator.RuleFor(x => x.Surname).NotNull();
 
 #pragma warning disable 618
-			var result = validator.Validate(new Person {Id = 5}, ruleSet : "foo");
+			var result = validator.Validate(new Person {Id = 5}, v => v.IncludeRuleSets("foo"));
 #pragma warning restore 618
 			result.Errors.Count.ShouldEqual(1);
 			result.Errors.Single().PropertyName.ShouldEqual("Forename");
@@ -297,9 +297,7 @@ namespace FluentValidation.Tests {
 			});
 			validator.RuleFor(x => x.Surname).NotNull();
 
-#pragma warning disable 618
-			var result = await validator.ValidateAsync(new Person {Id = 5}, ruleSet: "foo");
-#pragma warning restore 618
+			var result = await validator.ValidateAsync(new Person {Id = 5}, v => v.IncludeRuleSets("foo"));
 			result.Errors.Count.ShouldEqual(1);
 			result.Errors.Single().PropertyName.ShouldEqual("Forename");
 		}
@@ -312,9 +310,7 @@ namespace FluentValidation.Tests {
 
 			validator.RuleFor(x => x.Surname).NotNull();
 
-#pragma warning disable 618
-			var result = validator.Validate(new Person {Id = 5}, ruleSet : "foo");
-#pragma warning restore 618
+			var result = validator.Validate(new Person {Id = 5}, v => v.IncludeRuleSets("foo"));
 			result.Errors.Count.ShouldEqual(1);
 			result.Errors.Single().PropertyName.ShouldEqual("Forename");
 		}
@@ -327,9 +323,7 @@ namespace FluentValidation.Tests {
 
 			validator.RuleFor(x => x.Surname).NotNull();
 
-#pragma warning disable 618
-			var result = await validator.ValidateAsync(new Person {Id = 5}, ruleSet: "foo");
-#pragma warning restore 618
+			var result = await validator.ValidateAsync(new Person {Id = 5}, v => v.IncludeRuleSets("foo"));
 			result.Errors.Count.ShouldEqual(1);
 			result.Errors.Single().PropertyName.ShouldEqual("Forename");
 		}
@@ -593,6 +587,26 @@ namespace FluentValidation.Tests {
 		}
 
 		[Fact]
+		public void Nested_when_inside_otherwise() {
+			var validator = new InlineValidator<Person>();
+			validator.When(x => x.Id == 1, () => {
+				validator.RuleFor(x => x.Forename).NotNull();
+			}).Otherwise(() => {
+				validator.When(x => x.Age > 18, () => {
+					validator.RuleFor(x => x.Email).NotNull();
+				});
+			});
+
+			var result = validator.Validate(new Person() {Id = 1});
+			result.Errors.Count.ShouldEqual(1);
+			result.Errors[0].PropertyName.ShouldEqual("Forename");
+
+			result = validator.Validate(new Person() {Id = 2, Age = 20});
+			result.Errors.Count.ShouldEqual(1);
+			result.Errors[0].PropertyName.ShouldEqual("Email");
+		}
+
+		[Fact]
 		public void When_condition_executed_for_each_instance_of_RuleForEach_condition_should_not_be_cached() {
 			var person = new Person {
 				Children = new List<Person> {
@@ -658,6 +672,63 @@ namespace FluentValidation.Tests {
 			result.IsValid.ShouldBeTrue();
 		}
 
+		[Fact]
+		public void Shouldnt_break_with_hashcode_collision() {
+			var v1 = new InlineValidator<Collision1>();
+			var v2 = new InlineValidator<Collision2>();
+
+
+			var v = new InlineValidator<CollisionBase>();
+			v.When(x => x is Collision1, () => {
+				v.RuleFor(x => ((Collision1)x).Name).NotNull();
+			});
+			v.When(x => x is Collision2, () => {
+				v.RuleFor(x => ((Collision2)x).Name).NotNull();
+			});
+
+			// shouldn't throw an InvalidCastException.
+			var containerValidator = new InlineValidator<List<CollisionBase>>();
+			containerValidator.RuleForEach(x => x).SetValidator(v);
+			containerValidator.Validate(new List<CollisionBase> {
+				new Collision1(), new Collision2()
+			});
+		}
+
+		[Fact]
+		public async Task Shouldnt_break_with_hashcode_collision_async() {
+			var v1 = new InlineValidator<Collision1>();
+			var v2 = new InlineValidator<Collision2>();
+
+			var v = new InlineValidator<CollisionBase>();
+			v.WhenAsync((x, ct) => Task.FromResult(x is Collision1), () => {
+				v.RuleFor(x => ((Collision1)x).Name).NotNull();
+			});
+			v.WhenAsync((x, ct) => Task.FromResult(x is Collision2), () => {
+				v.RuleFor(x => ((Collision2)x).Name).NotNull();
+			});
+
+			var containerValidator = new InlineValidator<List<CollisionBase>>();
+			containerValidator.RuleForEach(x => x).SetValidator(v);
+
+			// shouldn't throw an InvalidCastException.
+			await containerValidator.ValidateAsync(new List<CollisionBase> {
+				new Collision1(), new Collision2()
+			});
+		}
+
+
+		class CollisionBase { }
+
+		class Collision1 : CollisionBase {
+
+			public string Name { get; set; }
+			public override int GetHashCode() => 1;
+		}
+
+		class Collision2 : CollisionBase {
+			public string Name { get; set; }
+			public override int GetHashCode() => 1;
+		}
 	}
 }
 

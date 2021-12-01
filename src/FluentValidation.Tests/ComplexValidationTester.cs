@@ -85,9 +85,7 @@ namespace FluentValidation.Tests {
 
 		[Fact]
 		public void Explicitly_included_properties_should_be_propagated_to_nested_validators() {
-#pragma warning disable 618
-			var results = validator.Validate(person, x => x.Address);
-#pragma warning restore 618
+			var results = validator.Validate(person, v => v.IncludeProperties(x => x.Address));
 			results.Errors.Count.ShouldEqual(2);
 			results.Errors.First().PropertyName.ShouldEqual("Address.Postcode");
 			results.Errors.Last().PropertyName.ShouldEqual("Address.Country.Name");
@@ -95,9 +93,7 @@ namespace FluentValidation.Tests {
 
 		[Fact]
 		public void Explicitly_included_properties_should_be_propagated_to_nested_validators_using_strings() {
-#pragma warning disable 618
-			var results = validator.Validate(person, "Address");
-#pragma warning restore 618
+			var results = validator.Validate(person, v => v.IncludeProperties("Address"));
 			results.Errors.Count.ShouldEqual(2);
 			results.Errors.First().PropertyName.ShouldEqual("Address.Postcode");
 			results.Errors.Last().PropertyName.ShouldEqual("Address.Country.Name");
@@ -106,9 +102,7 @@ namespace FluentValidation.Tests {
 
 		[Fact]
 		public void Complex_property_should_be_excluded() {
-#pragma warning disable 618
-			var results = validator.Validate(person, x => x.Surname);
-#pragma warning restore 618
+			var results = validator.Validate(person, v => v.IncludeProperties(x => x.Surname));
 			results.Errors.Count.ShouldEqual(0);
 		}
 
@@ -255,7 +249,7 @@ namespace FluentValidation.Tests {
 			return null;
 		}
 
-		public class PersonValidator : AbstractValidator<Person> {
+		public class PersonValidator : InlineValidator<Person> {
 			public PersonValidator() {
 				RuleFor(x => x.Forename).NotNull();
 				RuleFor(x => x.Address).SetValidator(new AddressValidator());
@@ -298,7 +292,7 @@ namespace FluentValidation.Tests {
 			}
 		}
 
-		public class TracksAsyncCallValidator<T> : AbstractValidator<T> {
+		public class TracksAsyncCallValidator<T> : InlineValidator<T> {
 			public bool? WasCalledAsync;
 
 			public override ValidationResult Validate(ValidationContext<T> context) {

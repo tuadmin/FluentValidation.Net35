@@ -5,13 +5,10 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 
-namespace Xunit
-{
-	class XunitException : Exception
-	{
+namespace Xunit {
+		class XunitException : Exception {
 		readonly string stackTrace;
 
 		/// <summary>
@@ -24,8 +21,7 @@ namespace Xunit
 		/// </summary>
 		/// <param name="userMessage">The user message to be displayed</param>
 		public XunitException(string userMessage)
-			: this(userMessage, (Exception)null)
-		{
+			: this(userMessage, (Exception)null) {
 		}
 
 		/// <summary>
@@ -34,8 +30,7 @@ namespace Xunit
 		/// <param name="userMessage">The user message to be displayed</param>
 		/// <param name="innerException">The inner exception</param>
 		protected XunitException(string userMessage, Exception innerException)
-			: base(userMessage, innerException)
-		{
+			: base(userMessage, innerException) {
 			UserMessage = userMessage;
 		}
 
@@ -45,8 +40,7 @@ namespace Xunit
 		/// <param name="userMessage">The user message to be displayed</param>
 		/// <param name="stackTrace">The stack trace to be displayed</param>
 		protected XunitException(string userMessage, string stackTrace)
-			: this(userMessage)
-		{
+			: this(userMessage) {
 			this.stackTrace = stackTrace;
 		}
 
@@ -54,8 +48,7 @@ namespace Xunit
 		/// Gets a string representation of the frames on the call stack at the time the current exception was thrown.
 		/// </summary>
 		/// <returns>A string that describes the contents of the call stack, with the most recent method call appearing first.</returns>
-		public override string StackTrace
-		{
+		public override string StackTrace {
 			get { return stackTrace ?? base.StackTrace; }
 		}
 
@@ -65,8 +58,7 @@ namespace Xunit
 		public string UserMessage { get; protected set; }
 
 		/// <inheritdoc/>
-		public override string ToString()
-		{
+		public override string ToString() {
 			string className = GetType().ToString();
 			string message = Message;
 			string result;
@@ -84,8 +76,7 @@ namespace Xunit
 		}
 	}
 
-	class AllException : XunitException
-	{
+	class AllException : XunitException {
 		readonly IReadOnlyList<Tuple<int, object, Exception>> errors;
 		readonly int totalItems;
 
@@ -95,8 +86,7 @@ namespace Xunit
 		/// <param name="totalItems">The total number of items that were in the collection.</param>
 		/// <param name="errors">The list of errors that occurred during the test pass.</param>
 		public AllException(int totalItems, Tuple<int, object, Exception>[] errors)
-			: base("Assert.All() Failure")
-		{
+			: base("Assert.All() Failure") {
 			this.errors = errors.ToList().AsReadOnlyEx();
 			this.totalItems = totalItems;
 		}
@@ -107,12 +97,9 @@ namespace Xunit
 		public IReadOnlyList<Exception> Failures { get { return errors.Select(t => t.Item3).ToList().AsReadOnlyEx(); } }
 
 		/// <inheritdoc/>
-		public override string Message
-		{
-			get
-			{
-				var formattedErrors = errors.Select(error =>
-				{
+		public override string Message {
+			get {
+				var formattedErrors = errors.Select(error => {
 					var indexString = string.Format(CultureInfo.CurrentCulture, "[{0}]: ", error.Item1);
 					var spaces = Environment.NewLine + "".PadRight(indexString.Length);
 
@@ -142,22 +129,18 @@ namespace Xunit
 	// <summary>
 	/// Default implementation of <see cref="ITestOutputHelper"/>.
 	/// </summary>
-	public class DebugWindowOutputHelper : Abstractions.ITestOutputHelper
-	{
-		public void WriteLine(string message)
-		{
+	public class DebugWindowOutputHelper : Abstractions.ITestOutputHelper {
+		public void WriteLine(string message) {
 			System.Diagnostics.Debug.WriteLine(message);
 		}
 
-		public void WriteLine(string format, params object[] args)
-		{
+		public void WriteLine(string format, params object[] args) {
 			System.Diagnostics.Debug.Print(format, args);
 			System.Diagnostics.Debug.WriteLine(string.Empty);
 		}
 	}
 
-	static class AssertEx
-	{
+	class AssertEx : Assert {
 		/// <summary>
 		/// Verifies that all items in the collection pass when executed against
 		/// action.
@@ -166,22 +149,18 @@ namespace Xunit
 		/// <param name="collection">The collection</param>
 		/// <param name="action">The action to test each item against</param>
 		/// <exception cref="AllException">Thrown when the collection contains at least one non-matching element</exception>
-		public static void All<T>(IEnumerable<T> collection, Action<T> action)
-		{
+		public static void All<T>(IEnumerable<T> collection, Action<T> action) {
 			Assert.NotNull(collection);
 			Assert.NotNull(action);
 
 			var errors = new Stack<Tuple<int, object, Exception>>();
 			var array = collection.ToArray();
 
-			for (var idx = 0; idx < array.Length; ++idx)
-			{
-				try
-				{
+			for (var idx = 0; idx < array.Length; ++idx) {
+				try {
 					action(array[idx]);
 				}
-				catch (Exception ex)
-				{
+				catch (Exception ex) {
 					errors.Push(new Tuple<int, object, Exception>(idx, array[idx], ex));
 				}
 			}
@@ -190,6 +169,52 @@ namespace Xunit
 				throw new AllException(array.Length, errors.ToArray());
 		}
 
+		// Summary:
+		//     Verifies that a collection contains a given object.
+		//
+		// Parameters:
+		//   collection:
+		//     The collection to be inspected
+		//
+		//   filter:
+		//     The filter used to find the item you're ensuring the collection contains
+		//
+		// Type parameters:
+		//   T:
+		//     The type of the object to be verified
+		//
+		// Exceptions:
+		//   T:Xunit.Sdk.ContainsException:
+		//     Thrown when the object is not present in the collection
+		public static void Contains<T>(IEnumerable<T> collection, Predicate<T> filter)
+		{
+			Assert.NotNull(collection);
+			Assert.NotNull(filter);
+
+			using var enumerator = collection.GetEnumerator();
+			{
+				while (enumerator.MoveNext()) {
+						if (filter(enumerator.Current)) {
+							return;
+						}
+				}
+				throw new Xunit.Sdk.AssertException("object is not present in the collection");
+			}
+		}
+		//DoesNotContain
+		public static void DoesNotContain<T>(IEnumerable<T> collection, Predicate<T> filter) {
+			Assert.NotNull(collection);
+			Assert.NotNull(filter);
+
+			using var enumerator = collection.GetEnumerator();
+			{
+				while (enumerator.MoveNext()) {
+					if (filter(enumerator.Current)) {
+						throw new Xunit.Sdk.AssertException("object is present in the collection");
+					}
+				}
+			}
+		}
 
 		/// <summary>
 		/// Records any exception which is thrown by the given code.
@@ -197,17 +222,14 @@ namespace Xunit
 		/// <param name="testCode">The code which may thrown an exception.</param>
 		/// <returns>Returns the exception that was thrown by the code; null, otherwise.</returns>
 		[SuppressMessage("Microsoft.Design", "CA1031:DoNotCatchGeneralExceptionTypes", Justification = "The caught exception is resurfaced to the user.")]
-		static Exception RecordException(Action testCode)
-		{
+		static Exception RecordException(Action testCode) {
 			Assert.NotNull(testCode);
 
-			try
-			{
+			try {
 				testCode();
 				return null;
 			}
-			catch (Exception ex)
-			{
+			catch (Exception ex) {
 				return ex;
 			}
 		}
@@ -220,8 +242,7 @@ namespace Xunit
 		/// <returns>The exception that was thrown, when successful</returns>
 		/// <exception cref="ThrowsException">Thrown when an exception was not thrown, or when an exception of the incorrect type is thrown</exception>
 		public static T Throws<T>(Action testCode)
-			where T : Exception
-		{
+			where T : Exception {
 			return (T)Throws(typeof(T), RecordException(testCode));
 		}
 
@@ -232,13 +253,11 @@ namespace Xunit
 		/// <param name="testCode">A delegate to the code to be tested</param>
 		/// <returns>The exception that was thrown, when successful</returns>
 		/// <exception cref="ThrowsException">Thrown when an exception was not thrown, or when an exception of the incorrect type is thrown</exception>
-		public static Exception Throws(Type exceptionType, Action testCode)
-		{
+		public static Exception Throws(Type exceptionType, Action testCode) {
 			return Throws(exceptionType, RecordException(testCode));
 		}
 
-		static Exception Throws(Type exceptionType, Exception exception)
-		{
+		static Exception Throws(Type exceptionType, Exception exception) {
 			Assert.NotNull(exceptionType);
 
 			if (exception == null)
@@ -304,17 +323,14 @@ namespace Xunit
 	}
 
 
-	public class InlineDataAttribute : Xunit.Extensions.InlineDataAttribute
-	{
-    public InlineDataAttribute(params object[] dataValues)
-			: base(dataValues)
-		{
+	public class InlineDataAttribute : Xunit.Extensions.InlineDataAttribute {
+		public InlineDataAttribute(params object[] dataValues)
+			: base(dataValues) {
 
 		}
 	}
 
-	public class TheoryAttribute : Xunit.Extensions.TheoryAttribute
-	{
+	public class TheoryAttribute : Xunit.Extensions.TheoryAttribute {
 
 	}
 
@@ -328,8 +344,7 @@ namespace Xunit
 	/// </summary>
 	//[DataDiscoverer("Xunit.Sdk.MemberDataDiscoverer", "xunit.core")]
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true, Inherited = true)]
-	public sealed class MemberDataAttribute : MemberDataAttributeBase
-	{
+	public sealed class MemberDataAttribute : MemberDataAttributeBase {
 		/// <summary>
 		/// Initializes a new instance of the <see cref="MemberDataAttribute"/> class.
 		/// </summary>
@@ -339,8 +354,7 @@ namespace Xunit
 			: base(memberName, parameters) { }
 
 		/// <inheritdoc/>
-		protected override object[] ConvertDataItem(MethodInfo testMethod, object item)
-		{
+		protected override object[] ConvertDataItem(System.Reflection.MethodInfo testMethod, object item) {
 			if (item == null)
 				return null;
 
@@ -358,15 +372,13 @@ namespace Xunit
 	/// Caution: the property is completely enumerated by .ToList() before any test is run. Hence it should return independent object sets.
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true, Inherited = true)]
-	public abstract class MemberDataAttributeBase : Extensions.DataAttribute
-	{
+	public abstract class MemberDataAttributeBase : Extensions.DataAttribute {
 		/// <summary>
 		/// Initializes a new instance of the <see cref="MemberDataAttributeBase"/> class.
 		/// </summary>
 		/// <param name="memberName">The name of the public static member on the test class that will provide the test data</param>
 		/// <param name="parameters">The parameters for the member (only supported for methods; ignored for everything else)</param>
-		protected MemberDataAttributeBase(string memberName, object[] parameters)
-		{
+		protected MemberDataAttributeBase(string memberName, object[] parameters) {
 			MemberName = memberName;
 			Parameters = parameters;
 		}
@@ -395,14 +407,12 @@ namespace Xunit
 		public object[] Parameters { get; private set; }
 
 		/// <inheritdoc/>
-		public override IEnumerable<object[]> GetData(MethodInfo testMethod, Type[] parameterTypes)
-		{
+		public override IEnumerable<object[]> GetData(System.Reflection.MethodInfo testMethod, Type[] parameterTypes) {
 			//Guard.ArgumentNotNull("testMethod", testMethod);
 
 			var type = MemberType ?? testMethod.DeclaringType;
 			var accessor = GetPropertyAccessor(type) ?? GetFieldAccessor(type) ?? GetMethodAccessor(type);
-			if (accessor == null)
-			{
+			if (accessor == null) {
 				var parameterText = Parameters?.Length > 0 ? $" with parameter types: {string.Join(", ", Parameters.Select(p => p?.GetType().FullName ?? "(null)").ToArray())}" : "";
 				throw new ArgumentException($"Could not find public static member (property, field, or method) named '{MemberName}' on {type.FullName}{parameterText}");
 			}
@@ -424,13 +434,11 @@ namespace Xunit
 		/// <param name="testMethod">The method that is being tested.</param>
 		/// <param name="item">An item yielded from the data member.</param>
 		/// <returns>An <see cref="T:object[]"/> suitable for return from <see cref="GetData"/>.</returns>
-		protected abstract object[] ConvertDataItem(MethodInfo testMethod, object item);
+		protected abstract object[] ConvertDataItem(System.Reflection.MethodInfo testMethod, object item);
 
-		Func<object> GetFieldAccessor(Type type)
-		{
-			FieldInfo fieldInfo = null;
-			for (var reflectionType = type; reflectionType != null; reflectionType = reflectionType.GetTypeInfo().BaseType)
-			{
+		Func<object> GetFieldAccessor(Type type) {
+			System.Reflection.FieldInfo fieldInfo = null;
+			for (var reflectionType = type; reflectionType != null; reflectionType = reflectionType.GetTypeInfo().BaseType) {
 				fieldInfo = reflectionType.GetField(MemberName);
 				if (fieldInfo != null)
 					break;
@@ -442,14 +450,12 @@ namespace Xunit
 			return () => fieldInfo.GetValue(null);
 		}
 
-		Func<object> GetMethodAccessor(Type type)
-		{
-			MethodInfo methodInfo = null;
+		Func<object> GetMethodAccessor(Type type) {
+			System.Reflection.MethodInfo methodInfo = null;
 			var parameterTypes = Parameters == null ? new Type[0] : Parameters.Select(p => p?.GetType()).ToArray();
-			for (var reflectionType = type; reflectionType != null; reflectionType = reflectionType.GetTypeInfo().BaseType)
-			{
+			for (var reflectionType = type; reflectionType != null; reflectionType = reflectionType.GetTypeInfo().BaseType) {
 				methodInfo = reflectionType.GetMethods()
-										   .FirstOrDefault(m => m.Name == MemberName && ParameterTypesCompatible(m.GetParameters(), parameterTypes));
+											 .FirstOrDefault(m => m.Name == MemberName && ParameterTypesCompatible(m.GetParameters(), parameterTypes));
 				if (methodInfo != null)
 					break;
 			}
@@ -460,11 +466,9 @@ namespace Xunit
 			return () => methodInfo.Invoke(null, Parameters);
 		}
 
-		Func<object> GetPropertyAccessor(Type type)
-		{
-			PropertyInfo propInfo = null;
-			for (var reflectionType = type; reflectionType != null; reflectionType = reflectionType.GetTypeInfo().BaseType)
-			{
+		Func<object> GetPropertyAccessor(Type type) {
+			System.Reflection.PropertyInfo propInfo = null;
+			for (var reflectionType = type; reflectionType != null; reflectionType = reflectionType.GetTypeInfo().BaseType) {
 				propInfo = reflectionType.GetProperty(MemberName);
 				if (propInfo != null)
 					break;
@@ -476,8 +480,7 @@ namespace Xunit
 			return () => propInfo.GetValue(null, null);
 		}
 
-		static bool ParameterTypesCompatible(ParameterInfo[] parameters, Type[] parameterTypes)
-		{
+		static bool ParameterTypesCompatible(System.Reflection.ParameterInfo[] parameters, Type[] parameterTypes) {
 			if (parameters?.Length != parameterTypes.Length)
 				return false;
 
@@ -492,28 +495,24 @@ namespace Xunit
 	/// <summary>
 	/// Provides data for theories based on collection initialization syntax.
 	/// </summary>
-	public abstract class TheoryData : IEnumerable<object[]>
-	{
+	public abstract class TheoryData : IEnumerable<object[]> {
 		readonly List<object[]> data = new List<object[]>();
 
 		/// <summary>
 		/// Adds a row to the theory.
 		/// </summary>
 		/// <param name="values">The values to be added.</param>
-		protected void AddRow(params object[] values)
-		{
+		protected void AddRow(params object[] values) {
 			data.Add(values);
 		}
 
 		/// <inheritdoc/>
-		public IEnumerator<object[]> GetEnumerator()
-		{
+		public IEnumerator<object[]> GetEnumerator() {
 			return data.GetEnumerator();
 		}
 
 		/// <inheritdoc/>
-		IEnumerator IEnumerable.GetEnumerator()
-		{
+		IEnumerator IEnumerable.GetEnumerator() {
 			return GetEnumerator();
 		}
 	}
@@ -523,14 +522,12 @@ namespace Xunit
 	/// be added to the data set using the collection initializer syntax.
 	/// </summary>
 	/// <typeparam name="T">The parameter type.</typeparam>
-	public class TheoryData<T> : TheoryData
-	{
+	public class TheoryData<T> : TheoryData {
 		/// <summary>
 		/// Adds data to the theory data set.
 		/// </summary>
 		/// <param name="p">The data value.</param>
-		public void Add(T p)
-		{
+		public void Add(T p) {
 			AddRow(p);
 		}
 	}
@@ -541,15 +538,13 @@ namespace Xunit
 	/// </summary>
 	/// <typeparam name="T1">The first parameter type.</typeparam>
 	/// <typeparam name="T2">The second parameter type.</typeparam>
-	public class TheoryData<T1, T2> : TheoryData
-	{
+	public class TheoryData<T1, T2> : TheoryData {
 		/// <summary>
 		/// Adds data to the theory data set.
 		/// </summary>
 		/// <param name="p1">The first data value.</param>
 		/// <param name="p2">The second data value.</param>
-		public void Add(T1 p1, T2 p2)
-		{
+		public void Add(T1 p1, T2 p2) {
 			AddRow(p1, p2);
 		}
 	}
@@ -561,16 +556,14 @@ namespace Xunit
 	/// <typeparam name="T1">The first parameter type.</typeparam>
 	/// <typeparam name="T2">The second parameter type.</typeparam>
 	/// <typeparam name="T3">The third parameter type.</typeparam>
-	public class TheoryData<T1, T2, T3> : TheoryData
-	{
+	public class TheoryData<T1, T2, T3> : TheoryData {
 		/// <summary>
 		/// Adds data to the theory data set.
 		/// </summary>
 		/// <param name="p1">The first data value.</param>
 		/// <param name="p2">The second data value.</param>
 		/// <param name="p3">The third data value.</param>
-		public void Add(T1 p1, T2 p2, T3 p3)
-		{
+		public void Add(T1 p1, T2 p2, T3 p3) {
 			AddRow(p1, p2, p3);
 		}
 	}
@@ -583,8 +576,7 @@ namespace Xunit
 	/// <typeparam name="T2">The second parameter type.</typeparam>
 	/// <typeparam name="T3">The third parameter type.</typeparam>
 	/// <typeparam name="T4">The fourth parameter type.</typeparam>
-	public class TheoryData<T1, T2, T3, T4> : TheoryData
-	{
+	public class TheoryData<T1, T2, T3, T4> : TheoryData {
 		/// <summary>
 		/// Adds data to the theory data set.
 		/// </summary>
@@ -592,8 +584,7 @@ namespace Xunit
 		/// <param name="p2">The second data value.</param>
 		/// <param name="p3">The third data value.</param>
 		/// <param name="p4">The fourth data value.</param>
-		public void Add(T1 p1, T2 p2, T3 p3, T4 p4)
-		{
+		public void Add(T1 p1, T2 p2, T3 p3, T4 p4) {
 			AddRow(p1, p2, p3, p4);
 		}
 	}
@@ -607,8 +598,7 @@ namespace Xunit
 	/// <typeparam name="T3">The third parameter type.</typeparam>
 	/// <typeparam name="T4">The fourth parameter type.</typeparam>
 	/// <typeparam name="T5">The fifth parameter type.</typeparam>
-	public class TheoryData<T1, T2, T3, T4, T5> : TheoryData
-	{
+	public class TheoryData<T1, T2, T3, T4, T5> : TheoryData {
 		/// <summary>
 		/// Adds data to the theory data set.
 		/// </summary>
@@ -617,8 +607,7 @@ namespace Xunit
 		/// <param name="p3">The third data value.</param>
 		/// <param name="p4">The fourth data value.</param>
 		/// <param name="p5">The fifth data value.</param>
-		public void Add(T1 p1, T2 p2, T3 p3, T4 p4, T5 p5)
-		{
+		public void Add(T1 p1, T2 p2, T3 p3, T4 p4, T5 p5) {
 			AddRow(p1, p2, p3, p4, p5);
 		}
 	}
@@ -633,8 +622,7 @@ namespace Xunit
 	/// <typeparam name="T4">The fourth parameter type.</typeparam>
 	/// <typeparam name="T5">The fifth parameter type.</typeparam>
 	/// <typeparam name="T6">The sixth parameter type.</typeparam>
-	public class TheoryData<T1, T2, T3, T4, T5, T6> : TheoryData
-	{
+	public class TheoryData<T1, T2, T3, T4, T5, T6> : TheoryData {
 		/// <summary>
 		/// Adds data to the theory data set.
 		/// </summary>
@@ -644,8 +632,7 @@ namespace Xunit
 		/// <param name="p4">The fourth data value.</param>
 		/// <param name="p5">The fifth data value.</param>
 		/// <param name="p6">The sixth data value.</param>
-		public void Add(T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6)
-		{
+		public void Add(T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6) {
 			AddRow(p1, p2, p3, p4, p5, p6);
 		}
 	}
@@ -661,8 +648,7 @@ namespace Xunit
 	/// <typeparam name="T5">The fifth parameter type.</typeparam>
 	/// <typeparam name="T6">The sixth parameter type.</typeparam>
 	/// <typeparam name="T7">The seventh parameter type.</typeparam>
-	public class TheoryData<T1, T2, T3, T4, T5, T6, T7> : TheoryData
-	{
+	public class TheoryData<T1, T2, T3, T4, T5, T6, T7> : TheoryData {
 		/// <summary>
 		/// Adds data to the theory data set.
 		/// </summary>
@@ -673,8 +659,7 @@ namespace Xunit
 		/// <param name="p5">The fifth data value.</param>
 		/// <param name="p6">The sixth data value.</param>
 		/// <param name="p7">The seventh data value.</param>
-		public void Add(T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7)
-		{
+		public void Add(T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7) {
 			AddRow(p1, p2, p3, p4, p5, p6, p7);
 		}
 	}
@@ -691,8 +676,7 @@ namespace Xunit
 	/// <typeparam name="T6">The sixth parameter type.</typeparam>
 	/// <typeparam name="T7">The seventh parameter type.</typeparam>
 	/// <typeparam name="T8">The eigth parameter type.</typeparam>
-	public class TheoryData<T1, T2, T3, T4, T5, T6, T7, T8> : TheoryData
-	{
+	public class TheoryData<T1, T2, T3, T4, T5, T6, T7, T8> : TheoryData {
 		/// <summary>
 		/// Adds data to the theory data set.
 		/// </summary>
@@ -704,8 +688,7 @@ namespace Xunit
 		/// <param name="p6">The sixth data value.</param>
 		/// <param name="p7">The seventh data value.</param>
 		/// <param name="p8">The eigth data value.</param>
-		public void Add(T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7, T8 p8)
-		{
+		public void Add(T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7, T8 p8) {
 			AddRow(p1, p2, p3, p4, p5, p6, p7, p8);
 		}
 	}
@@ -723,8 +706,7 @@ namespace Xunit
 	/// <typeparam name="T7">The seventh parameter type.</typeparam>
 	/// <typeparam name="T8">The eigth parameter type.</typeparam>
 	/// <typeparam name="T9">The nineth parameter type.</typeparam>
-	public class TheoryData<T1, T2, T3, T4, T5, T6, T7, T8, T9> : TheoryData
-	{
+	public class TheoryData<T1, T2, T3, T4, T5, T6, T7, T8, T9> : TheoryData {
 		/// <summary>
 		/// Adds data to the theory data set.
 		/// </summary>
@@ -737,8 +719,7 @@ namespace Xunit
 		/// <param name="p7">The seventh data value.</param>
 		/// <param name="p8">The eigth data value.</param>
 		/// <param name="p9">The nineth data value.</param>
-		public void Add(T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7, T8 p8, T9 p9)
-		{
+		public void Add(T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7, T8 p8, T9 p9) {
 			AddRow(p1, p2, p3, p4, p5, p6, p7, p8, p9);
 		}
 	}
@@ -757,8 +738,7 @@ namespace Xunit
 	/// <typeparam name="T8">The eigth parameter type.</typeparam>
 	/// <typeparam name="T9">The nineth parameter type.</typeparam>
 	/// <typeparam name="T10">The tenth parameter type.</typeparam>
-	public class TheoryData<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> : TheoryData
-	{
+	public class TheoryData<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> : TheoryData {
 		/// <summary>
 		/// Adds data to the theory data set.
 		/// </summary>
@@ -772,20 +752,17 @@ namespace Xunit
 		/// <param name="p8">The eigth data value.</param>
 		/// <param name="p9">The nineth data value.</param>
 		/// <param name="p10">The tenth data value.</param>
-		public void Add(T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7, T8 p8, T9 p9, T10 p10)
-		{
+		public void Add(T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6, T7 p7, T8 p8, T9 p9, T10 p10) {
 			AddRow(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10);
 		}
 	}
 }
 
-namespace Xunit.Abstractions
-{
-	/// <summary>
-	/// Represents a class which can be used to provide test output.
-	/// </summary>
-	public interface ITestOutputHelper
-	{
+namespace Xunit.Abstractions {
+		/// <summary>
+		/// Represents a class which can be used to provide test output.
+		/// </summary>
+		public interface ITestOutputHelper {
 		/// <summary>
 		/// Adds a line of text to the output.
 		/// </summary>

@@ -16,33 +16,25 @@
 // The latest version of this file can be found at https://github.com/FluentValidation/FluentValidation
 #endregion
 
-namespace FluentValidation.Resources {
+namespace FluentValidation {
 	using System;
-	using Validators;
+	using System.Collections.Generic;
 
 	/// <summary>
-	/// Represents a static string.
+	/// Represents a rule defined against a collection with RuleForEach.
 	/// </summary>
-	[Obsolete("StaticStringSource is deprecated and will be removed in FluentValidation 10. Use a Func<PropertyValidatorContext, string> instead.")]
-	public class StaticStringSource : IStringSource {
-		readonly string _message;
-
-		internal string String => _message;
+	/// <typeparam name="T">Root object</typeparam>
+	/// <typeparam name="TElement">Type of each element in the collection</typeparam>
+	public interface ICollectionRule<T, TElement> : IValidationRule<T, TElement> {
+		/// <summary>
+		/// Filter that should include/exclude items in the collection.
+		/// </summary>
+		public Func<TElement, bool> Filter { get; set; }
 
 		/// <summary>
-		/// Creates a new StringErrorMessageSource using the specified error message as the error template.
+		/// Constructs the indexer in the property name associated with the error message.
+		/// By default this is "[" + index + "]"
 		/// </summary>
-		/// <param name="message">The error message template.</param>
-		public StaticStringSource(string message) {
-			_message = message;
-		}
-
-		/// <summary>
-		/// Construct the error message template
-		/// </summary>
-		/// <returns>Error message template</returns>
-		public string GetString(ICommonContext context) {
-			return _message;
-		}
+		public Func<T, IEnumerable<TElement>, TElement, int, string> IndexBuilder { get; set; }
 	}
 }

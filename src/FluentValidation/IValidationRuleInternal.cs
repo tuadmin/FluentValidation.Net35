@@ -16,20 +16,21 @@
 // The latest version of this file can be found at https://github.com/FluentValidation/FluentValidation
 #endregion
 
-namespace FluentValidation.Resources {
+namespace FluentValidation {
+	using System.Collections.Generic;
+	using System.Threading;
+	using System.Threading.Tasks;
+	using Internal;
 
-	using System;
-	using Validators;
+	internal interface IValidationRuleInternal<T> : IValidationRule<T> {
+		void Validate(ValidationContext<T> context);
 
-	/// <summary>
-	/// Provides error message templates
-	/// </summary>
-	[Obsolete("IStringSource is deprecated and will be removed in FluentValidation 10.")]
-	public interface IStringSource {
-		/// <summary>
-		/// Construct the error message template
-		/// </summary>
-		/// <returns>Error message template</returns>
-		string GetString(ICommonContext context);
+		Task ValidateAsync(ValidationContext<T> context, CancellationToken cancellation);
+
+		void AddDependentRules(IEnumerable<IValidationRuleInternal<T>> rules);
+	}
+
+	internal interface IValidationRuleInternal<T, TProperty> : IValidationRule<T, TProperty>, IValidationRuleInternal<T>, IValidationRuleConfigurable<T,TProperty> {
+		new List<RuleComponent<T,TProperty>> Components { get; }
 	}
 }

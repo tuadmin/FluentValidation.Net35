@@ -22,14 +22,11 @@ namespace FluentValidation.Tests {
 	using System;
 	using System.Collections.Generic;
 	using System.Linq;
+	using System.Threading;
 	using System.Threading.Tasks;
 	using Internal;
 	using Validators;
 	using Xunit;
-
-#if NET35
-	using Task = System.Threading.Tasks.TaskEx;
-#endif
 
 	public class ForEachRuleTests {
 		private object _lock = new object();
@@ -117,7 +114,7 @@ namespace FluentValidation.Tests {
 		[Fact]
 		public async System.Threading.Tasks.Task Executes_rule_for_each_item_in_collection_async() {
 			var validator = new TestValidator {
-				v => v.RuleForEach(x => x.NickNames).SetValidator(new MyAsyncNotNullValidator())
+				v => v.RuleForEach(x => x.NickNames).SetAsyncValidator(new MyAsyncNotNullValidator<Person,string>())
 			};
 
 			var person = new Person {
@@ -131,7 +128,7 @@ namespace FluentValidation.Tests {
 		[Fact]
 		public async System.Threading.Tasks.Task Correctly_gets_collection_indices_async() {
 			var validator = new TestValidator {
-				v => v.RuleForEach(x => x.NickNames).SetValidator(new MyAsyncNotNullValidator())
+				v => v.RuleForEach(x => x.NickNames).SetAsyncValidator(new MyAsyncNotNullValidator<Person,string>())
 			};
 
 			var person = new Person {
@@ -147,10 +144,15 @@ namespace FluentValidation.Tests {
 			public Person person = null;
 		}
 
-		private class MyAsyncNotNullValidator : NotNullValidator {
-			public override bool ShouldValidateAsynchronously(IValidationContext context) {
-				return context.IsAsync();
+		private class MyAsyncNotNullValidator<T,TProperty> : IAsyncPropertyValidator<T,TProperty> {
+			private IPropertyValidator<T, TProperty> _inner = new NotNullValidator<T, TProperty>();
+
+			public Task<bool> IsValidAsync(ValidationContext<T> context, TProperty value, CancellationToken cancellation) {
+				return Task.FromResult(_inner.IsValid(context, value));
 			}
+
+			public string Name => _inner.Name;
+			public string GetDefaultMessageTemplate(string errorCode) => _inner.GetDefaultMessageTemplate(errorCode);
 		}
 
 		[Fact]
@@ -284,6 +286,63 @@ namespace FluentValidation.Tests {
 			result.Errors[2].PropertyName.ShouldEqual("Children[1]");
 		}
 
+		[Fact]
+		public void Resets_state_correctly_between_rules() {
+			var v = new InlineValidator<Person>();
+			v.RuleForEach(x => x.NickNames).NotNull();
+			v.RuleFor(x => x.Forename).NotNull();
+
+			// The ValidationContext is reinitialized for each item in the collection
+			// Specifically, the PropertyChain is reset and modified.
+			// After the collection has been validated, the PropertyChain should be reset to its original value.
+			// We can test this by checking the final output of the property names for subsequent rules after the RuleForEach.
+			var result = v.Validate(new Person() {NickNames = new[] {null, "Foo", null}, Forename = null});
+			result.Errors.Count.ShouldEqual(3);
+			result.Errors[0].PropertyName.ShouldEqual("NickNames[0]");
+			result.Errors[1].PropertyName.ShouldEqual("NickNames[2]");
+			result.Errors[2].PropertyName.ShouldEqual("Forename");
+		}
+
+		[Fact]
+		public async Task Resets_state_correctly_between_rules_async() {
+			var v = new InlineValidator<Person>();
+			v.RuleForEach(x => x.NickNames).NotNull();
+			v.RuleFor(x => x.Forename).NotNull();
+
+			// The ValidationContext is reinitialized for each item in the collection
+			// Specifically, the PropertyChain is reset and modified.
+			// After the collection has been validated, the PropertyChain should be reset to its original value.
+			// We can test this by checking the final output of the property names for subsequent rules after the RuleForEach.
+			var result = await v.ValidateAsync(new Person() {NickNames = new[] {null, "Foo", null}, Forename = null});
+			result.Errors.Count.ShouldEqual(3);
+			result.Errors[0].PropertyName.ShouldEqual("NickNames[0]");
+			result.Errors[1].PropertyName.ShouldEqual("NickNames[2]");
+			result.Errors[2].PropertyName.ShouldEqual("Forename");
+		}
+
+		[Fact]
+		public void Shouldnt_throw_exception_when_configuring_rule_after_ForEach() {
+			var validator = new InlineValidator<Person>();
+
+			validator.RuleFor(x => x.Orders)
+				.ForEach(o => {
+					o.Must(v => true);
+				})
+				.Must((val) => true)
+				.WithMessage("what");
+
+			// The RuleBuilder is RuleBuilder<Person, IList<Order>>
+			// after the ForEach, it's returned as an IRuleBuilderOptions<Person, IEnumerable<Order>>
+			// This shouldn't cause an InvalidCastException when attempting to configure the rule
+			// by using WithMessage or any other standard option.
+
+			var result = validator.Validate(new Person() {
+				Orders = new List<Order>() { new Order()}
+			});
+
+			result.IsValid.ShouldBeTrue();
+		}
+
 		public class ApplicationViewModel {
 			public List<ApplicationGroup> TradingExperience { get; set; } = new List<ApplicationGroup> {new ApplicationGroup()};
 		}
@@ -313,13 +372,16 @@ namespace FluentValidation.Tests {
 		public class AppropriatenessQuestionViewModelValidator : AbstractValidator<Question> {
 			public AppropriatenessQuestionViewModelValidator() {
 				RuleFor(m => m.SelectedAnswerID)
-					.SetValidator(new AppropriatenessAnswerViewModelRequiredValidator());
+					.SetValidator(new AppropriatenessAnswerViewModelRequiredValidator<Question, int>());
 				;
 			}
 		}
 
-		public class AppropriatenessAnswerViewModelRequiredValidator : PropertyValidator {
-			protected override bool IsValid(PropertyValidatorContext context) {
+		public class AppropriatenessAnswerViewModelRequiredValidator<T,TProperty> : PropertyValidator<T,TProperty> {
+
+			public override string Name => "AppropriatenessAnswerViewModelRequiredValidator";
+
+			public override bool IsValid(ValidationContext<T> context, TProperty value) {
 				return false;
 			}
 		}
@@ -360,9 +422,7 @@ namespace FluentValidation.Tests {
 				v => v.RuleForEach(x => x.Orders).SetValidator(new OrderValidator())
 			};
 
-#pragma warning disable 618
-			var results = validator.Validate(_person, x => x.Orders);
-#pragma warning restore 618
+			var results = validator.Validate(_person, v => v.IncludeProperties(x => x.Orders));
 			results.Errors.Count.ShouldEqual(2);
 		}
 
@@ -373,9 +433,7 @@ namespace FluentValidation.Tests {
 				v => v.RuleForEach(x => x.Orders).SetValidator(new OrderValidator())
 			};
 
-#pragma warning disable 618
-			var results = validator.Validate(_person, "Orders");
-#pragma warning restore 618
+			var results = validator.Validate(_person, v => v.IncludeProperties("Orders"));
 			results.Errors.Count.ShouldEqual(2);
 		}
 
@@ -386,9 +444,7 @@ namespace FluentValidation.Tests {
 				v => v.RuleForEach(x => x.Orders).SetValidator(new OrderValidator())
 			};
 
-#pragma warning disable 618
-			var results = validator.Validate(_person, x => x.Forename);
-#pragma warning restore 618
+			var results = validator.Validate(_person, v => v.IncludeProperties(x => x.Forename));
 			results.Errors.Count.ShouldEqual(0);
 		}
 
@@ -603,6 +659,58 @@ namespace FluentValidation.Tests {
 			result.IsValid.ShouldBeFalse();
 			result.Errors[0].ErrorMessage.ShouldEqual("1 must not be empty");
 			result.Errors[0].ErrorMessage.ShouldEqual("1 must not be empty");
+		}
+
+		[Fact]
+		public void Failing_condition_should_prevent_multiple_components_running_and_not_throw() {
+			// https://github.com/FluentValidation/FluentValidation/issues/1698
+			var validator = new InlineValidator<Person>();
+
+			validator.RuleForEach(x => x.Orders)
+				.NotNull()
+				.NotNull()
+				.When(x => x.Orders.Count > 0);
+
+			var result = validator.Validate(new Person());
+			result.IsValid.ShouldBeTrue();
+		}
+
+		[Fact]
+		public async Task Failing_condition_should_prevent_multiple_components_running_and_not_throw_async() {
+			// https://github.com/FluentValidation/FluentValidation/issues/1698
+			var validator = new InlineValidator<Person>();
+
+			validator.RuleForEach(x => x.Orders)
+				.MustAsync((o, ct) => Task.FromResult(o != null))
+				.MustAsync((o, ct) => Task.FromResult(o != null))
+				.When(x => x.Orders.Count > 0);
+
+			var result = await validator.ValidateAsync(new Person());
+			result.IsValid.ShouldBeTrue();
+		}
+
+		[Fact]
+		public void Rule_ForEach_display_name_should_match_RuleForEach_display_name() {
+			var validator = new InlineValidator<Person>();
+
+			// These 2 rule definitions should produce the same error message and property name.
+			// https://github.com/FluentValidation/FluentValidation/issues/1231
+
+			validator
+				.RuleForEach(x => x.NickNames)
+				.Must(x => false)
+				.WithMessage("{PropertyName}");
+
+			validator
+				.RuleFor(x => x.NickNames)
+				.ForEach(n => n.Must(x => false).WithMessage("{PropertyName}"));
+
+			var result = validator.Validate(new Person() {NickNames = new[] {"foo"}});
+			result.Errors[0].PropertyName.ShouldEqual("NickNames[0]");
+			result.Errors[0].ErrorMessage.ShouldEqual("Nick Names");
+
+			result.Errors[1].PropertyName.ShouldEqual("NickNames[0]");
+			result.Errors[1].ErrorMessage.ShouldEqual("Nick Names");
 		}
 
 		public class OrderValidator : AbstractValidator<Order> {

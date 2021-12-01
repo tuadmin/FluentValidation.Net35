@@ -26,15 +26,14 @@ namespace FluentValidation.Tests {
 	using TestHelper;
 	using Validators;
 	using System.Threading.Tasks;
-
 #if NET35
-	using Task = System.Threading.Tasks.TaskEx;
+	using Assert = Xunit.AssertEx;
 #endif
+
 	public class ValidatorTesterTester {
 		private TestValidator validator;
 
 		public ValidatorTesterTester() {
-			CultureScope.SetDefaultCulture();
 			validator = new TestValidator();
 			validator.RuleFor(x => x.CreditCard).Must(creditCard => !string.IsNullOrEmpty(creditCard)).WhenAsync((x, cancel) => Task.Run(() => { return x.Age >= 18; }));
 			validator.RuleFor(x => x.Forename).NotNull();
@@ -44,101 +43,118 @@ namespace FluentValidation.Tests {
 
 		[Fact]
 		public void ShouldHaveValidationError_should_not_throw_when_there_are_validation_errors_ruleforeach() {
-			validator.ShouldHaveValidationErrorFor(l => l.NickNames, new[] {"magician", "bull"});
+			var person = new Person {NickNames = new[] {"magician", "bull"}};
+			validator.TestValidate(person).ShouldHaveValidationErrorFor(l => l.NickNames);
 		}
 
 		[Fact]
 		public void ShouldHaveValidationError_should_throw_when_there_are_not_validation_errors_ruleforeach() {
+			var person = new Person {NickNames = new[] {"magician", "awesome"}};
+
 			ValidationTestException validationTestException = Assert.Throws<ValidationTestException>(() =>
-				validator.ShouldHaveValidationErrorFor(l => l.NickNames, new[] {"magician", "awesome"}));
+				validator.TestValidate(person).ShouldHaveValidationErrorFor(l => l.NickNames));
 
 			Assert.Contains(nameof(Person.NickNames), validationTestException.Message);
 		}
 
 		[Fact]
 		public void ShouldNotHaveValidationError_should_not_throw_when_there_are_not_validation_errors_ruleforeach() {
-			validator.ShouldNotHaveValidationErrorFor(l => l.NickNames, new[] {"magician", "awesome"});
+			var person = new Person {NickNames = new[] {"magician", "awesome"}};
+			validator.TestValidate(person).ShouldNotHaveValidationErrorFor(l => l.NickNames);
 		}
 
 		[Fact]
 		public void ShouldNotHaveValidationError_should_throw_when_there_are_validation_errors_ruleforeach() {
+			var person = new Person {NickNames = new[] {"magician", "bull"}};
+
 			ValidationTestException validationTestException = Assert.Throws<ValidationTestException>(() =>
-				validator.ShouldNotHaveValidationErrorFor(l => l.NickNames, new[] {"magician", "bull"}));
+				validator.TestValidate(person).ShouldNotHaveValidationErrorFor(l => l.NickNames));
 
 			Assert.Contains(nameof(Person.NickNames), validationTestException.Message);
 		}
 
 		[Fact]
 		public void ShouldNotHaveValidationError_should_have_validation_error_details_when_thrown_ruleforeach() {
+			var person = new Person {NickNames = new[] {"magician", "bull"}};
 			ValidationTestException validationTestException = Assert.Throws<ValidationTestException>(() =>
-				validator.ShouldNotHaveValidationErrorFor(l => l.NickNames, new[] { "magician", "bull" }));
+				validator.TestValidate(person).ShouldNotHaveValidationErrorFor(l => l.NickNames));
 			Assert.Contains("The length of 'Nick Names' must be at least 5 characters. You entered 4 characters.", validationTestException.Message);
 		}
 
 		[Fact]
 		public void ShouldHaveValidationError_should_not_throw_when_there_are_validation_errors() {
-			validator.ShouldHaveValidationErrorFor(x => x.Forename, (string) null);
+			var person = new Person();
+			validator.TestValidate(person).ShouldHaveValidationErrorFor(x => x.Forename);
 		}
 
 		[Fact]
 		public void ShouldHaveValidationError_Should_support_nested_properties() {
 			validator.RuleFor(x => x.Address.Line1).NotNull();
-			validator.ShouldHaveValidationErrorFor(x => x.Address.Line1, new Person {
+
+			var person = new Person {
 				Address = new Address {
 					Line1 = null,
 				},
-			});
+			};
+
+			validator.TestValidate(person).ShouldHaveValidationErrorFor(x => x.Address.Line1);
 		}
 
 		[Fact]
 		public void ShouldNotHaveValidationError_Should_support_nested_properties() {
 			validator.RuleFor(x => x.Address.Line1).NotNull();
-			validator.ShouldNotHaveValidationErrorFor(x => x.Address.Line1, new Person {
+
+			var person = new Person {
 				Address = new Address {
 					Line1 = "anything",
 				},
-			});
+			};
+
+			validator.TestValidate(person).ShouldNotHaveValidationErrorFor(x => x.Address.Line1);
 		}
 
 		[Fact]
 		public void ShouldHaveValidationError_Should_throw_when_there_are_no_validation_errors() {
-			typeof(ValidationTestException).ShouldBeThrownBy(() => validator.ShouldHaveValidationErrorFor(x => x.Forename, "test"));
+			var person = new Person {Forename = "test"};
+			Assert.Throws<ValidationTestException>(() => validator.TestValidate(person).ShouldHaveValidationErrorFor(x => x.Forename));
 		}
 
 		[Fact]
 		public void ShouldNotHaveValidationError_should_not_throw_when_there_are_no_errors() {
-			validator.ShouldNotHaveValidationErrorFor(x => x.Forename, "test");
+			var person = new Person {Forename = "test"};
+			validator.TestValidate(person).ShouldNotHaveValidationErrorFor(x => x.Forename);
 		}
 
 		[Fact]
 		public void ShouldNotHaveValidationError_should_throw_when_there_are_errors() {
-			typeof(ValidationTestException).ShouldBeThrownBy(() => validator.ShouldNotHaveValidationErrorFor(x => x.Forename, (string) null));
+			var person = new Person();
+			Assert.Throws<ValidationTestException>(() => validator.TestValidate(person).ShouldNotHaveValidationErrorFor(x => x.Forename));
 		}
 
 		[Fact]
 		public void ShouldHaveValidationError_should_not_throw_when_there_are_errors_with_preconstructed_object() {
-			validator.ShouldHaveValidationErrorFor(x => x.Forename, new Person {Forename = null});
+			validator.TestValidate(new Person()).ShouldHaveValidationErrorFor(x => x.Forename);
 		}
 
 		[Fact]
 		public void ShouldHaveValidationError_should_throw_when_there_are_no_validation_errors_with_preconstructed_object() {
-			typeof(ValidationTestException).ShouldBeThrownBy(() => validator.ShouldHaveValidationErrorFor(x => x.Forename, new Person {Forename = "test"}));
+			Assert.Throws<ValidationTestException>(() => validator.TestValidate(new Person {Forename = "test"}).ShouldHaveValidationErrorFor(x => x.Forename));
 		}
 
 		[Fact]
 		public void ShouldNotHAveValidationError_should_not_throw_When_there_are_no_errors_with_preconstructed_object() {
-			validator.ShouldNotHaveValidationErrorFor(x => x.Forename, new Person {Forename = "test"});
+			validator.TestValidate(new Person {Forename = "test"}).ShouldNotHaveValidationErrorFor(x => x.Forename);
 		}
 
 		[Fact]
 		public void ShouldNotHaveValidationError_should_throw_when_there_are_errors_with_preconstructed_object() {
-			typeof(ValidationTestException).ShouldBeThrownBy(() => validator.ShouldNotHaveValidationErrorFor(x => x.Forename, new Person {Forename = null}));
+			Assert.Throws<ValidationTestException>(() => validator.TestValidate(new Person {Forename = null}).ShouldNotHaveValidationErrorFor(x => x.Forename));
 		}
 
 
 		[Fact]
 		public void ShouldHaveChildValidator_throws_when_property_does_not_have_child_validator() {
-			var ex = typeof(ValidationTestException).ShouldBeThrownBy(() =>
+			var ex = Assert.Throws<ValidationTestException>(() =>
 				validator.ShouldHaveChildValidator(x => x.Address, typeof(AddressValidator))
 			);
 
@@ -160,7 +176,7 @@ namespace FluentValidation.Tests {
 
 		[Fact]
 		public void ShouldHaveChildvalidator_throws_when_collection_property_Does_not_have_child_validator() {
-			var ex = typeof(ValidationTestException).ShouldBeThrownBy(() =>
+			var ex = Assert.Throws<ValidationTestException>(() =>
 				validator.ShouldHaveChildValidator(x => x.Orders, typeof(OrderValidator))
 			);
 
@@ -170,7 +186,7 @@ namespace FluentValidation.Tests {
 		[Fact]
 		public void ShouldHaveChildValidator_should_throw_when_property_has_a_different_child_validator() {
 			validator.RuleFor(x => x.Address).SetValidator(new AddressValidator());
-			var ex = typeof(ValidationTestException).ShouldBeThrownBy(() =>
+			var ex = Assert.Throws<ValidationTestException>(() =>
 				validator.ShouldHaveChildValidator(x => x.Address, typeof(OrderValidator))
 			);
 
@@ -198,7 +214,8 @@ namespace FluentValidation.Tests {
 			});
 			testValidator.RuleFor(x => x.Id).NotEqual(0);
 
-			testValidator.ShouldHaveValidationErrorFor(x => x.Forename, new Person(), "Names");
+			testValidator.TestValidate(new Person(), opt => opt.IncludeRuleSets("Names"))
+				.ShouldHaveValidationErrorFor(x => x.Forename);
 		}
 
 		[Fact]
@@ -210,7 +227,9 @@ namespace FluentValidation.Tests {
 			});
 			testValidator.RuleFor(x => x.Id).NotEqual(0);
 
+#pragma warning disable 618
 			var assertionRoot = testValidator.TestValidate(new Person(), "Names");
+#pragma warning restore 618
 
 			assertionRoot.ShouldHaveValidationErrorFor(x => x.Forename)
 				.WithErrorCode("NotNullValidator");
@@ -268,35 +287,35 @@ namespace FluentValidation.Tests {
 
 		[Fact]
 		public void ShouldHaveValidationError_with_an_unmatched_rule_and_a_single_error_should_throw_an_exception() {
-      var validator = new TestValidator();
-      validator.RuleFor(x => x.NullableInt).GreaterThanOrEqualTo(3);
+			var validator = new TestValidator();
+			validator.RuleFor(x => x.NullableInt).GreaterThanOrEqualTo(3);
 
-      var result = validator.TestValidate(new Person() {
-        NullableInt = 1
-      });
+			var result = validator.TestValidate(new Person() {
+				NullableInt = 1
+			});
 
-      var ex = Assert.Throws<ValidationTestException>(() => result.ShouldHaveValidationErrorFor(x => x.NullableInt.Value));
-      Assert.Equal("Expected a validation error for property NullableInt.Value\n----\nProperties with Validation Errors:\n[0]: NullableInt\n", ex.Message);
-    }
+			var ex = Assert.Throws<ValidationTestException>(() => result.ShouldHaveValidationErrorFor(x => x.NullableInt.Value));
+			Assert.Equal("Expected a validation error for property NullableInt.Value\n----\nProperties with Validation Errors:\n[0]: NullableInt\n", ex.Message);
+		}
 
-    [Fact]
-    public void ShouldHaveValidationError_with_an_unmatched_rule_and_multiple_errors_should_throw_an_exception() {
-      var validator = new TestValidator();
-      validator.RuleFor(x => x.NullableInt).GreaterThan(1);
-      validator.RuleFor(x => x.Age).GreaterThan(1);
-      validator.RuleFor(x => x.AnotherInt).GreaterThan(2);
+		[Fact]
+		public void ShouldHaveValidationError_with_an_unmatched_rule_and_multiple_errors_should_throw_an_exception() {
+			var validator = new TestValidator();
+			validator.RuleFor(x => x.NullableInt).GreaterThan(1);
+			validator.RuleFor(x => x.Age).GreaterThan(1);
+			validator.RuleFor(x => x.AnotherInt).GreaterThan(2);
 
-      var result = validator.TestValidate(new Person() {
-        NullableInt = 1,
-        Age = 1,
-        AnotherInt = 1
-      });
+			var result = validator.TestValidate(new Person() {
+				NullableInt = 1,
+				Age = 1,
+				AnotherInt = 1
+			});
 
-      var ex = Assert.Throws<ValidationTestException>(() => result.ShouldHaveValidationErrorFor(x => x.NullableInt.Value));
-      Assert.Equal("Expected a validation error for property NullableInt.Value\n----\nProperties with Validation Errors:\n[0]: NullableInt\n[1]: Age\n[2]: AnotherInt\n", ex.Message);
-    }
+			var ex = Assert.Throws<ValidationTestException>(() => result.ShouldHaveValidationErrorFor(x => x.NullableInt.Value));
+			Assert.Equal("Expected a validation error for property NullableInt.Value\n----\nProperties with Validation Errors:\n[0]: NullableInt\n[1]: Age\n[2]: AnotherInt\n", ex.Message);
+		}
 
-    [Fact]
+		[Fact]
 		public void ShouldNotHaveValidationError_should_correctly_handle_explicitly_providing_object_to_validate() {
 			var unitOfMeasure = new UnitOfMeasure {
 				Value = 1,
@@ -305,7 +324,7 @@ namespace FluentValidation.Tests {
 
 			var validator = new UnitOfMeasureValidator();
 
-			validator.ShouldNotHaveValidationErrorFor(unit => unit.Type, unitOfMeasure);
+			validator.TestValidate(unitOfMeasure).ShouldNotHaveValidationErrorFor(unit => unit.Type);
 		}
 
 		[Fact]
@@ -318,13 +337,13 @@ namespace FluentValidation.Tests {
 				Street = "b"
 			};
 
-			validator.ShouldNotHaveValidationErrorFor(a => a.Street, address);
+			validator.TestValidate(address).ShouldNotHaveValidationErrorFor(a => a.Street);
 		}
 
 		[Fact]
 		public void ShouldHaveValidationError_preconstructed_object_does_not_throw_for_unwritable_property() {
 			validator.RuleFor(x => x.ForenameReadOnly).NotNull();
-			validator.ShouldHaveValidationErrorFor(x => x.ForenameReadOnly, new Person {Forename = null});
+			validator.TestValidate(new Person {Forename = null}).ShouldHaveValidationErrorFor(x => x.ForenameReadOnly);
 		}
 
 		[Fact]
@@ -335,7 +354,9 @@ namespace FluentValidation.Tests {
 				var validator = new InlineValidator<Person> {
 					v => v.RuleFor(x => x.Surname).NotNull().WithMessage("bar")
 				};
-				validator.ShouldHaveValidationErrorFor(x => x.Surname, null as string).WithErrorMessage("foo");
+				validator.TestValidate(new Person())
+					.ShouldHaveValidationErrorFor(x => x.Surname)
+					.WithErrorMessage("foo");
 			}
 			catch (ValidationTestException e) {
 				exceptionCaught = true;
@@ -362,9 +383,10 @@ namespace FluentValidation.Tests {
 
 			try {
 				var validator = new InlineValidator<Person>();
-				foreach(var msg in errMessages) {
+				foreach (var msg in errMessages) {
 					validator.Add(v => v.RuleFor(x => x.Surname).NotNull().WithMessage(msg));
 				}
+
 				validator.TestValidate(new Person { }).Errors.WithoutErrorMessage(withoutErrMsg);
 			}
 			catch (ValidationTestException e) {
@@ -374,32 +396,34 @@ namespace FluentValidation.Tests {
 			}
 
 			exceptionCaught.ShouldEqual(errMessages.Contains(withoutErrMsg));
-    }
+		}
 
-    [Fact]
-    public void Expected_message_argument_check() {
-      bool exceptionCaught = false;
+		[Fact]
+		public void Expected_message_argument_check() {
+			bool exceptionCaught = false;
 
-      try {
-        var validator = new InlineValidator<Person> {
-          v => v.RuleFor(x => x.Surname)
-            .Must((x, y, context) => {
-              context.MessageFormatter.AppendArgument("Foo", "bar");
-              return false;
-            })
-            .WithMessage("{Foo}")
-        };
-        validator.ShouldHaveValidationErrorFor(x => x.Surname, null as string).WithMessageArgument("Foo", "foo");
-      }
-      catch (ValidationTestException e) {
-        exceptionCaught = true;
-        e.Message.ShouldEqual("Expected message argument 'Foo' with value 'foo'. Actual value was 'bar'");
-      }
+			try {
+				var validator = new InlineValidator<Person> {
+					v => v.RuleFor(x => x.Surname)
+						.Must((x, y, context) => {
+							context.MessageFormatter.AppendArgument("Foo", "bar");
+							return false;
+						})
+						.WithMessage("{Foo}")
+				};
+				validator.TestValidate(new Person())
+					.ShouldHaveValidationErrorFor(x => x.Surname)
+					.WithMessageArgument("Foo", "foo");
+			}
+			catch (ValidationTestException e) {
+				exceptionCaught = true;
+				e.Message.ShouldEqual("Expected message argument 'Foo' with value 'foo'. Actual value was 'bar'");
+			}
 
-      exceptionCaught.ShouldBeTrue();
-    }
+			exceptionCaught.ShouldBeTrue();
+		}
 
-    [Fact]
+		[Fact]
 		public void Expected_state_check() {
 			bool exceptionCaught = false;
 
@@ -407,7 +431,9 @@ namespace FluentValidation.Tests {
 				var validator = new InlineValidator<Person> {
 					v => v.RuleFor(x => x.Surname).NotNull().WithState(x => "bar")
 				};
-				validator.ShouldHaveValidationErrorFor(x => x.Surname, null as string).WithCustomState("foo");
+				validator.TestValidate(new Person())
+					.ShouldHaveValidationErrorFor(x => x.Surname)
+					.WithCustomState("foo");
 			}
 			catch (ValidationTestException e) {
 				exceptionCaught = true;
@@ -427,7 +453,9 @@ namespace FluentValidation.Tests {
 					v => v.RuleFor(x => x.Surname).NotNull().WithState(x => "bar"),
 					v => v.RuleFor(x => x.Surname).NotNull().WithState(x => "foo"),
 				};
-				validator.ShouldHaveValidationErrorFor(x => x.Surname, null as string).WithoutCustomState("bar");
+				validator.TestValidate(new Person())
+					.ShouldHaveValidationErrorFor(x => x.Surname)
+					.WithoutCustomState("bar");
 			}
 			catch (ValidationTestException e) {
 				exceptionCaught = true;
@@ -480,7 +508,9 @@ namespace FluentValidation.Tests {
 				var validator = new InlineValidator<Person> {
 					v => v.RuleFor(x => x.Surname).NotNull().WithErrorCode("bar")
 				};
-				validator.ShouldHaveValidationErrorFor(x => x.Surname, null as string).WithErrorCode("foo");
+				validator.TestValidate(new Person())
+					.ShouldHaveValidationErrorFor(x => x.Surname)
+					.WithErrorCode("foo");
 			}
 			catch (ValidationTestException e) {
 				exceptionCaught = true;
@@ -500,7 +530,9 @@ namespace FluentValidation.Tests {
 					v => v.RuleFor(x => x.Surname).NotNull().WithErrorCode("bar"),
 					v => v.RuleFor(x => x.Surname).NotNull().WithErrorCode("foo")
 				};
-				validator.ShouldHaveValidationErrorFor(x => x.Surname, null as string).WithoutErrorCode("bar");
+				validator.TestValidate(new Person())
+					.ShouldHaveValidationErrorFor(x => x.Surname)
+					.WithoutErrorCode("bar");
 			}
 			catch (ValidationTestException e) {
 				exceptionCaught = true;
@@ -519,7 +551,9 @@ namespace FluentValidation.Tests {
 				var validator = new InlineValidator<Person> {
 					v => v.RuleFor(x => x.Surname).NotNull().WithSeverity(Severity.Warning)
 				};
-				validator.ShouldHaveValidationErrorFor(x => x.Surname, null as string).WithSeverity(Severity.Error);
+				validator.TestValidate(new Person())
+					.ShouldHaveValidationErrorFor(x => x.Surname)
+					.WithSeverity(Severity.Error);
 			}
 			catch (ValidationTestException e) {
 				exceptionCaught = true;
@@ -539,7 +573,9 @@ namespace FluentValidation.Tests {
 					v => v.RuleFor(x => x.Surname).NotNull().WithSeverity(Severity.Warning),
 					v => v.RuleFor(x => x.Surname).NotNull().WithSeverity(Severity.Error),
 				};
-				validator.ShouldHaveValidationErrorFor(x => x.Surname, null as string).WithoutSeverity(Severity.Warning);
+				validator.TestValidate(new Person())
+					.ShouldHaveValidationErrorFor(x => x.Surname)
+					.WithoutSeverity(Severity.Warning);
 			}
 			catch (ValidationTestException e) {
 				exceptionCaught = true;
@@ -559,7 +595,7 @@ namespace FluentValidation.Tests {
 				Age = age
 			};
 
-			validator.ShouldHaveValidationErrorFor(x => x.CreditCard, testPerson);
+			validator.TestValidate(testPerson).ShouldHaveValidationErrorFor(x => x.CreditCard);
 		}
 
 		[Theory]
@@ -573,7 +609,7 @@ namespace FluentValidation.Tests {
 				Age = age
 			};
 
-			Assert.Throws<ValidationTestException>(() => validator.ShouldHaveValidationErrorFor(x => x.CreditCard, testPerson));
+			Assert.Throws<ValidationTestException>(() => validator.TestValidate(testPerson).ShouldHaveValidationErrorFor(x => x.CreditCard));
 		}
 
 		[Theory]
@@ -587,7 +623,8 @@ namespace FluentValidation.Tests {
 				Age = age
 			};
 
-			validator.ShouldNotHaveValidationErrorFor(x => x.CreditCard, testPerson);
+			validator.TestValidate(testPerson)
+				.ShouldNotHaveValidationErrorFor(x => x.CreditCard);
 		}
 
 		[Theory]
@@ -599,7 +636,7 @@ namespace FluentValidation.Tests {
 				Age = age
 			};
 
-			Assert.Throws<ValidationTestException>(() => validator.ShouldNotHaveValidationErrorFor(x => x.CreditCard, testPerson));
+			Assert.Throws<ValidationTestException>(() => validator.TestValidate(testPerson).ShouldNotHaveValidationErrorFor(x => x.CreditCard));
 		}
 
 		[Fact]
@@ -706,7 +743,7 @@ namespace FluentValidation.Tests {
 		}
 
 		[Fact]
-		public async System.Threading.Tasks.Task TestValidate_runs_async() {
+		public async Task TestValidate_runs_async() {
 			var validator = new InlineValidator<Person>();
 			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(false));
 			var result = await validator.TestValidateAsync(new Person());
@@ -714,7 +751,7 @@ namespace FluentValidation.Tests {
 		}
 
 		[Fact]
-		public async System.Threading.Tasks.Task TestValidate_runs_async_throws() {
+		public async Task TestValidate_runs_async_throws() {
 			var validator = new InlineValidator<Person>();
 			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(false));
 			var result = await validator.TestValidateAsync(new Person());
@@ -724,90 +761,66 @@ namespace FluentValidation.Tests {
 		}
 
 		[Fact]
-		public async System.Threading.Tasks.Task ShouldHaveValidationError_async() {
+		public async Task ShouldHaveValidationError_async() {
 			var validator = new InlineValidator<Person>();
 			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(false));
-			await validator.ShouldHaveValidationErrorForAsync(x => x.Surname, null as string);
+			(await validator.TestValidateAsync(new Person())).ShouldHaveValidationErrorFor(x => x.Surname);
 		}
 
 		[Fact]
-		public async System.Threading.Tasks.Task ShouldHaveValidationError_async_throws() {
+		public async Task ShouldHaveValidationError_async_throws() {
 			var validator = new InlineValidator<Person>();
 			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(true));
-			await
-#if NET35
-				AssertEx
-#else
-				Assert
-#endif
-				.ThrowsAsync<ValidationTestException>(async () =>
-					{	await validator.ShouldHaveValidationErrorForAsync(x => x.Surname, null as string);
+			await Assert.ThrowsAsync<ValidationTestException>(async () => {
+				(await validator.TestValidateAsync(new Person())).ShouldHaveValidationErrorFor(x => x.Surname);
 			});
 		}
 
 		[Fact]
-		public async System.Threading.Tasks.Task ShouldNotHaveValidationError_async() {
+		public async Task ShouldNotHaveValidationError_async() {
 			var validator = new InlineValidator<Person>();
 			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(true));
-			await validator.ShouldNotHaveValidationErrorForAsync(x => x.Surname, null as string);
+			(await validator.TestValidateAsync(new Person())).ShouldNotHaveValidationErrorFor(x => x.Surname);
 		}
 
 		[Fact]
-		public async System.Threading.Tasks.Task ShouldNotHaveValidationError_async_throws() {
+		public async Task ShouldNotHaveValidationError_async_throws() {
 			var validator = new InlineValidator<Person>();
 			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(false));
-			await
-#if NET35
-				AssertEx
-#else
-				Assert
-#endif
-				.ThrowsAsync<ValidationTestException>(async () => {
-					await validator.ShouldNotHaveValidationErrorForAsync(x => x.Surname, null as string);
+			await Assert.ThrowsAsync<ValidationTestException>(async () => {
+				(await validator.TestValidateAsync(new Person())).ShouldNotHaveValidationErrorFor(x => x.Surname);
 			});
 		}
 
 		[Fact]
-		public async System.Threading.Tasks.Task ShouldHaveValidationError_model_async() {
+		public async Task ShouldHaveValidationError_model_async() {
 			var validator = new InlineValidator<Person>();
 			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(false));
-			await validator.ShouldHaveValidationErrorForAsync(x => x.Surname, new Person());
+			(await validator.TestValidateAsync(new Person())).ShouldHaveValidationErrorFor(x => x.Surname);
 		}
 
 		[Fact]
-		public async System.Threading.Tasks.Task ShouldHaveValidationError_model_async_throws() {
+		public async Task ShouldHaveValidationError_model_async_throws() {
 			var validator = new InlineValidator<Person>();
 			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(true));
-			await
-#if NET35
-				AssertEx
-#else
-				Assert
-#endif
-				.ThrowsAsync<ValidationTestException>(async () => {
-					await validator.ShouldHaveValidationErrorForAsync(x => x.Surname, new Person());
+			await Assert.ThrowsAsync<ValidationTestException>(async () => {
+				(await validator.TestValidateAsync(new Person())).ShouldHaveValidationErrorFor(x => x.Surname);
 			});
 		}
 
 		[Fact]
-		public async System.Threading.Tasks.Task ShouldNotHaveValidationError_model_async() {
+		public async Task ShouldNotHaveValidationError_model_async() {
 			var validator = new InlineValidator<Person>();
 			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(true));
-			await validator.ShouldNotHaveValidationErrorForAsync(x => x.Surname, new Person());
+			(await validator.TestValidateAsync(new Person())).ShouldNotHaveValidationErrorFor(x => x.Surname);
 		}
 
 		[Fact]
-		public async System.Threading.Tasks.Task ShouldNotHaveValidationError_async_model_throws() {
+		public async Task ShouldNotHaveValidationError_async_model_throws() {
 			var validator = new InlineValidator<Person>();
 			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(false));
-			await
-#if NET35
-				AssertEx
-#else
-				Assert
-#endif
-				.ThrowsAsync<ValidationTestException>(async () => {
-				await validator.ShouldNotHaveValidationErrorForAsync(x => x.Surname, new Person());
+			await Assert.ThrowsAsync<ValidationTestException>(async () => {
+				(await validator.TestValidateAsync(new Person())).ShouldNotHaveValidationErrorFor(x => x.Surname);
 			});
 		}
 
@@ -838,7 +851,7 @@ namespace FluentValidation.Tests {
 			public string Street { get; set; }
 		}
 
-		public class Address2Validator : AbstractValidator<Address2> {
+		public class Address2Validator : InlineValidator<Address2> {
 			public static string RuleLocationNames = "LocationNames";
 
 			public Address2Validator() {

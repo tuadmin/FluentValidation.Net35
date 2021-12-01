@@ -18,18 +18,15 @@
 
 namespace FluentValidation.AspNetCore {
 	using System;
-	using System.Reflection;
 	using Microsoft.AspNetCore.Mvc;
 	using Microsoft.AspNetCore.Mvc.ModelBinding;
 	using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 	using Microsoft.Extensions.DependencyInjection;
 	using Microsoft.Extensions.Options;
 	using FluentValidation;
-	using System.Collections.Generic;
 	using System.Linq;
 	using Microsoft.AspNetCore.Http;
 	using Microsoft.Extensions.DependencyInjection.Extensions;
-	using Microsoft.Extensions.Logging;
 
 	public static class FluentValidationMvcExtensions {
 		/// <summary>
@@ -41,28 +38,7 @@ namespace FluentValidation.AspNetCore {
 		///     MVC services.
 		/// </returns>
 		public static IMvcCoreBuilder AddFluentValidation(this IMvcCoreBuilder mvcBuilder, Action<FluentValidationMvcConfiguration> configurationExpression = null) {
-			var config = new FluentValidationMvcConfiguration(ValidatorOptions.Global);
-			configurationExpression?.Invoke(config);
-
-			RegisterServices(mvcBuilder.Services, config);
-
-			mvcBuilder.AddMvcOptions(options => {
-				// Check if the providers have already been added.
-				// We shouldn't have to do this, but there's a bug in the ASP.NET Core integration
-				// testing components that can cause Configureservices to be called multple times
-				// meaning we end up with duplicates.
-
-				if (!options.ModelMetadataDetailsProviders.Any(x => x is FluentValidationBindingMetadataProvider)) {
-					options.ModelMetadataDetailsProviders.Add(new FluentValidationBindingMetadataProvider());
-				}
-
-				if (!options.ModelValidatorProviders.Any(x => x is FluentValidationModelValidatorProvider)) {
-					options.ModelValidatorProviders.Insert(0, new FluentValidationModelValidatorProvider(
-						config.ImplicitlyValidateChildProperties,
-						config.ImplicitlyValidateRootCollectionElements));
-				}
-			});
-
+			mvcBuilder.Services.AddFluentValidation(configurationExpression);
 			return mvcBuilder;
 		}
 
@@ -75,16 +51,58 @@ namespace FluentValidation.AspNetCore {
 		///     MVC services.
 		/// </returns>
 		public static IMvcBuilder AddFluentValidation(this IMvcBuilder mvcBuilder, Action<FluentValidationMvcConfiguration> configurationExpression = null) {
+			mvcBuilder.Services.AddFluentValidation(configurationExpression);
+			return mvcBuilder;
+		}
+
+		/// <summary>
+		///     Adds Fluent Validation services to the specified
+		///     <see cref="T:Microsoft.Extensions.DependencyInjection.IServiceCollection" />.
+		/// </summary>
+		/// <returns>
+		///     A reference to this instance after the operation has completed.
+		/// </returns>
+		public static IServiceCollection AddFluentValidation(this IServiceCollection services, Action<FluentValidationMvcConfiguration> configurationExpression = null) {
 			var config = new FluentValidationMvcConfiguration(ValidatorOptions.Global);
 			configurationExpression?.Invoke(config);
 
-			RegisterServices(mvcBuilder.Services, config);
+			services.AddValidatorsFromAssemblies(config.AssembliesToRegister, config.ServiceLifetime, config.TypeFilter, config.IncludeInternalValidatorTypes);
+			services.AddSingleton(config.ValidatorOptions);
 
-			mvcBuilder.AddMvcOptions(options => {
+			if (config.ValidatorFactory != null) {
+				// Allow user to register their own IValidatorFactory instance, before falling back to try resolving by Type.
+				var factory = config.ValidatorFactory;
+				services.Add(ServiceDescriptor.Scoped(s => factory));
+			}
+			else {
+				services.Add(ServiceDescriptor.Scoped(typeof(IValidatorFactory), config.ValidatorFactoryType ?? typeof(ServiceProviderValidatorFactory)));
+			}
+
+			if (config.AutomaticValidationEnabled) {
+				services.Add(ServiceDescriptor.Singleton<IObjectModelValidator, FluentValidationObjectModelValidator>(s => {
+					var options = s.GetRequiredService<IOptions<MvcOptions>>().Value;
+					var metadataProvider = s.GetRequiredService<IModelMetadataProvider>();
+					return new FluentValidationObjectModelValidator(metadataProvider, options.ModelValidatorProviders, !config.DisableDataAnnotationsValidation);
+				}));
+			}
+
+			if (config.ClientsideEnabled) {
+				// Clientside validation requires access to the HttpContext, but MVC's clientside API does not provide it,
+				// so we need to inject the HttpContextAccessor instead.
+				// This is not registered by default, so add it in if the user hasn't done so.
+				services.AddHttpContextAccessor();
+
+				services.TryAddEnumerable(ServiceDescriptor.Singleton<IConfigureOptions<MvcViewOptions>, FluentValidationViewOptionsSetup>(s => {
+					return new FluentValidationViewOptionsSetup(config.ClientsideConfig, s.GetService<IHttpContextAccessor>());
+				}));
+			}
+
+			services.Configure<MvcOptions>(options => {
 				// Check if the providers have already been added.
 				// We shouldn't have to do this, but there's a bug in the ASP.NET Core integration
 				// testing components that can cause Configureservices to be called multple times
 				// meaning we end up with duplicates.
+
 				if (!options.ModelMetadataDetailsProviders.Any(x => x is FluentValidationBindingMetadataProvider)) {
 					options.ModelMetadataDetailsProviders.Add(new FluentValidationBindingMetadataProvider());
 				}
@@ -96,40 +114,7 @@ namespace FluentValidation.AspNetCore {
 				}
 			});
 
-			return mvcBuilder;
-		}
-
-		private static void RegisterServices(IServiceCollection services, FluentValidationMvcConfiguration config) {
-			services.AddValidatorsFromAssemblies(config.AssembliesToRegister, config.ServiceLifetime, config.TypeFilter);
-			services.AddSingleton(config.ValidatorOptions);
-
-			if (config.ValidatorFactory != null) {
-				// Allow user to register their own IValidatorFactory instance, before falling back to try resolving by Type.
-				var factory = config.ValidatorFactory;
-				services.Add(ServiceDescriptor.Transient(s => factory));
-			}
-			else {
-				services.Add(ServiceDescriptor.Transient(typeof(IValidatorFactory), config.ValidatorFactoryType ?? typeof(ServiceProviderValidatorFactory)));
-			}
-
-			if (config.AutomaticValidationEnabled) {
-				services.Add(ServiceDescriptor.Singleton<IObjectModelValidator, FluentValidationObjectModelValidator>(s => {
-					var options = s.GetRequiredService<IOptions<MvcOptions>>().Value;
-					var metadataProvider = s.GetRequiredService<IModelMetadataProvider>();
-					return new FluentValidationObjectModelValidator(metadataProvider, options.ModelValidatorProviders, config.RunDefaultMvcValidationAfterFluentValidationExecutes);
-				}));
-			}
-
-			if (config.ClientsideEnabled) {
-				// Clientside validation requires access to the HttpContext, but MVC's clientside API does not provide it,
-				// so we need to inject the HttpContextAccessor instead.
-				// This is not registered by default, so add it in if the user hasn't done so.
-				services.TryAddSingleton<IHttpContextAccessor, HttpContextAccessor>();
-
-				services.TryAddEnumerable(ServiceDescriptor.Transient<IConfigureOptions<MvcViewOptions>, FluentValidationViewOptionsSetup>(s => {
-					return new FluentValidationViewOptionsSetup(config.ClientsideConfig, s.GetService<IHttpContextAccessor>());
-				}));
-			}
+			return services;
 		}
 	}
 

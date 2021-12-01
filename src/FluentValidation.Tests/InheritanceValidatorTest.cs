@@ -301,9 +301,34 @@ namespace FluentValidation.Tests {
 		[Fact]
 		public void Can_use_custom_subclass_with_nongeneric_overload() {
 			var validator = new InlineValidator<Root>();
-			validator.RuleFor(x => x.Foo).SetValidator(new TypeUnsafePolymorphicValidator<Root, IFoo>());
+			validator.RuleFor(x => x.Foo).SetAsyncValidator((IAsyncPropertyValidator<Root, IFoo>) new TypeUnsafePolymorphicValidator<Root, IFoo>());
 			var result = validator.Validate(new Root {Foo = new FooImpl1()});
 			result.Errors.Single().PropertyName.ShouldEqual("Foo.Name");
+		}
+
+		[Fact]
+		public void Rulesets_cascade_properly_with_polymorphic_validators() {
+			var fooValidator = new InlineValidator<FooImpl1>();
+			fooValidator.RuleSet("test", () => {
+				fooValidator.RuleFor(x => x.Name).NotNull();
+			});
+
+			var validator = new InlineValidator<Root>();
+			validator.RuleSet("test", () => {
+				validator.RuleFor(x => x.Foo).SetInheritanceValidator(v => {
+					v.Add<FooImpl1>(fooValidator);
+				});
+			});
+
+			var model = new Root {
+				Foo = new FooImpl1()
+			};
+
+			var result = validator.Validate(model, options => {
+				options.IncludeRuleSets("test").IncludeRulesNotInRuleSet();
+			});
+
+			result.IsValid.ShouldBeFalse();
 		}
 
 		private class TypeUnsafePolymorphicValidator<T, TProperty> : PolymorphicValidator<T, TProperty> {

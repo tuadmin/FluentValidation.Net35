@@ -6,15 +6,15 @@
 FluentValidation
 ================
 
-FluentValidation is a A .NET library for building strongly-typed validation rules.
+FluentValidation is a .NET library for building strongly-typed validation rules.
 
-The following platforms are supported:
+FluentValidation 10 supports the following platforms:
 
-* .NET 4.6.1+
-* .NET Core 2.0+
-* `.NET Standard 2.0+ <https://docs.microsoft.com/en-us/dotnet/standard/net-standard>`_
+* .NET Core 3.1
+* .NET 5
+* `.NET Standard 2.0 <https://docs.microsoft.com/en-us/dotnet/standard/net-standard>`_
 
-For automatic validation with ASP.NET, FluentValidation supports ASP.NET Core 2.1 and 3.1.
+For automatic validation with ASP.NET, FluentValidation supports ASP.NET running on .NET Core 3.1 or .NET 5
 
 If you're new to using FluentValidation, check out the :doc:`start` page.
 
@@ -57,6 +57,8 @@ Example
   inheritance
   rulesets
   including-rules
+  di
+  upgrading-to-10
   upgrading-to-9
   upgrading-to-8
 
@@ -99,8 +101,6 @@ Example
   :caption: ASP.NET Integration
 
   aspnet
-  mvc5
-  webapi
   blazor
 
 .. _advanced-docs:

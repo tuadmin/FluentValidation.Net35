@@ -19,19 +19,26 @@
 namespace FluentValidation.Validators {
 	using System;
 	using System.Reflection;
-	using Internal;
-	using Resources;
 
-	public class GreaterThanOrEqualValidator : AbstractComparisonValidator  {
-		public GreaterThanOrEqualValidator(IComparable value) :
+	public class GreaterThanOrEqualValidator<T, TProperty> : AbstractComparisonValidator<T, TProperty>, IGreaterThanOrEqualValidator where TProperty : IComparable<TProperty>, IComparable {
+
+		public override string Name => "GreaterThanOrEqualValidator";
+
+		public GreaterThanOrEqualValidator(TProperty value) :
 			base(value) {
 		}
 
-		public GreaterThanOrEqualValidator(Func<object, object> valueToCompareFunc, MemberInfo member, string memberDisplayName)
+		public GreaterThanOrEqualValidator(Func<T, TProperty> valueToCompareFunc, MemberInfo member, string memberDisplayName)
 			: base(valueToCompareFunc, member, memberDisplayName) {
 		}
 
-		public override bool IsValid(IComparable value, IComparable valueToCompare) {
+#pragma warning disable CS3001 // Argument type is not CLS-compliant
+		public GreaterThanOrEqualValidator(Func<T, (bool HasValue, TProperty Value)> valueToCompareFunc, MemberInfo member, string memberDisplayName)
+#pragma warning restore CS3001 // Argument type is not CLS-compliant
+			: base(valueToCompareFunc, member, memberDisplayName) {
+		}
+
+		public override bool IsValid(TProperty value, TProperty valueToCompare) {
 			if (valueToCompare == null)
 				return false;
 
@@ -40,8 +47,10 @@ namespace FluentValidation.Validators {
 
 		public override Comparison Comparison => Validators.Comparison.GreaterThanOrEqual;
 
-		protected override string GetDefaultMessageTemplate() {
-			return Localized(nameof(GreaterThanOrEqualValidator));
+		protected override string GetDefaultMessageTemplate(string errorCode) {
+			return Localized(errorCode, Name);
 		}
 	}
+
+	public interface IGreaterThanOrEqualValidator : IComparisonValidator { }
 }

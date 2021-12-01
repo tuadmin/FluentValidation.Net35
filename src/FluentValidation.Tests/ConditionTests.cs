@@ -18,12 +18,9 @@
 #pragma warning disable 1998
 
 namespace FluentValidation.Tests {
-	using Xunit;	
-#if NET35
-	using Task = System.Threading.Tasks.TaskEx;
-#else
-  using System.Threading.Tasks;
-#endif
+	using System.Collections.Generic;
+	using Xunit;
+	using System.Threading.Tasks;
 
 	public class ConditionTests {
 		[Fact]
@@ -37,7 +34,7 @@ namespace FluentValidation.Tests {
 		public async System.Threading.Tasks.Task Validation_should_succeed_when_async_condition_does_not_match() {
 			var validator = new TestConditionAsyncValidator();
 			var result = await validator.ValidateAsync(new Person {Id = 1});
-            result.IsValid.ShouldBeTrue();
+						result.IsValid.ShouldBeTrue();
 		}
 
 		[Fact]
@@ -183,6 +180,33 @@ namespace FluentValidation.Tests {
 			result.IsValid.ShouldBeTrue();
 		}
 
+		[Fact]
+		public void Can_access_property_value_in_custom_condition() {
+			var validator = new TestValidator();
+			validator.RuleFor(x => x.Surname).Must(v => false).Configure(cfg => {
+				cfg.ApplyCondition(context => cfg.GetPropertyValue(context.InstanceToValidate) != null);
+			});
+
+			var result = validator.Validate(new Person());
+			result.IsValid.ShouldBeTrue();
+
+			result = validator.Validate(new Person {Surname = "foo"});
+			result.IsValid.ShouldBeFalse();
+		}
+
+		[Fact]
+		public void Can_access_property_value_in_custom_condition_foreach() {
+			var validator = new TestValidator();
+			validator.RuleForEach(x => x.Orders).Must(v => false).Configure(cfg => {
+				cfg.ApplyCondition(context => cfg.GetPropertyValue(context.InstanceToValidate) != null);
+			});
+
+			var result = validator.Validate(new Person());
+			result.IsValid.ShouldBeTrue();
+
+			result = validator.Validate(new Person { Orders = new List<Order> { new Order() }});
+			result.IsValid.ShouldBeFalse();
+		}
 
 		private class TestConditionValidator : AbstractValidator<Person> {
 			public TestConditionValidator() {
@@ -208,4 +232,5 @@ namespace FluentValidation.Tests {
 			}
 		}
 	}
+
 }
