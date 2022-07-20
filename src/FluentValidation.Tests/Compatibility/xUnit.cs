@@ -6,9 +6,11 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
+using Xunit.Sdk;
 
 namespace Xunit {
-		class XunitException : Exception {
+	class XunitException : Exception {
 		readonly string stackTrace;
 
 		/// <summary>
@@ -186,17 +188,16 @@ namespace Xunit {
 		// Exceptions:
 		//   T:Xunit.Sdk.ContainsException:
 		//     Thrown when the object is not present in the collection
-		public static void Contains<T>(IEnumerable<T> collection, Predicate<T> filter)
-		{
+		public static void Contains<T>(IEnumerable<T> collection, Predicate<T> filter) {
 			Assert.NotNull(collection);
 			Assert.NotNull(filter);
 
 			using var enumerator = collection.GetEnumerator();
 			{
 				while (enumerator.MoveNext()) {
-						if (filter(enumerator.Current)) {
-							return;
-						}
+					if (filter(enumerator.Current)) {
+						return;
+					}
 				}
 				throw new Xunit.Sdk.AssertException("object is not present in the collection");
 			}
@@ -235,6 +236,33 @@ namespace Xunit {
 		}
 
 		/// <summary>
+		/// Records any exception which is thrown by the given code that has
+		/// a return value. Generally used for testing property accessors.
+		/// </summary>
+		/// <param name="testCode">The code which may thrown an exception.</param>
+		static Exception RecordException(Func<object> testCode) {
+			if (testCode is null)
+			{
+					throw new ArgumentNullException(nameof(testCode));
+			}
+
+			var task = default(Task);
+
+			try {
+				task = testCode() as Task;
+			}
+			catch (Exception ex) {
+				return ex;
+			}
+
+			if (task != null)
+				throw new InvalidOperationException("You must call Assert.ThrowsAsync, Assert.DoesNotThrowAsync, or Record.ExceptionAsync when testing async code.");
+
+			return null;
+		}
+
+
+		/// <summary>
 		/// Verifies that the exact exception is thrown (and not a derived exception type).
 		/// </summary>
 		/// <typeparam name="T">The type of the exception expected to be thrown</typeparam>
@@ -269,6 +297,49 @@ namespace Xunit {
 			return exception;
 		}
 
+		/// <summary>
+		/// Verifies that the exact exception or a derived exception type is thrown.
+		/// </summary>
+		/// <typeparam name="T">The type of the exception expected to be thrown</typeparam>
+		/// <param name="testCode">A delegate to the code to be tested</param>
+		/// <returns>The exception that was thrown, when successful</returns>
+		/// <exception cref="ThrowsException">Thrown when an exception was not thrown, or when an exception of the incorrect type is thrown</exception>
+		public static T ThrowsAny<T>(Action testCode)
+			where T : Exception {
+			return (T)ThrowsAny(typeof(T), RecordException(testCode));
+		}
+
+		/// <summary>
+		/// Verifies that the exact exception or a derived exception type is thrown.
+		/// Generally used to test property accessors.
+		/// </summary>
+		/// <typeparam name="T">The type of the exception expected to be thrown</typeparam>
+		/// <param name="testCode">A delegate to the code to be tested</param>
+		/// <returns>The exception that was thrown, when successful</returns>
+		/// <exception cref="ThrowsException">Thrown when an exception was not thrown, or when an exception of the incorrect type is thrown</exception>
+#if XUNIT_NULLABLE
+		public static T ThrowsAny<T>(Func<object?> testCode)
+#else
+		public static T ThrowsAny<T>(Func<object> testCode)
+#endif
+			where T : Exception {
+			return (T)ThrowsAny(typeof(T), RecordException(testCode));
+		}
+
+		static Exception ThrowsAny(Type exceptionType, Exception exception)
+{
+			if (exceptionType is null) {
+				throw new ArgumentNullException(nameof(exceptionType));
+			}
+
+			if (exception == null)
+				throw new ThrowsException(exceptionType);
+
+			if (!exceptionType.GetTypeInfo().IsAssignableFrom(exception.GetType().GetTypeInfo()))
+				throw new ThrowsException(exceptionType, exception);
+
+			return exception;
+		}
 
 		/// <summary>
 		/// Verifies that the exact exception is thrown (and not a derived exception type).
@@ -759,10 +830,10 @@ namespace Xunit {
 }
 
 namespace Xunit.Abstractions {
-		/// <summary>
-		/// Represents a class which can be used to provide test output.
-		/// </summary>
-		public interface ITestOutputHelper {
+	/// <summary>
+	/// Represents a class which can be used to provide test output.
+	/// </summary>
+	public interface ITestOutputHelper {
 		/// <summary>
 		/// Adds a line of text to the output.
 		/// </summary>

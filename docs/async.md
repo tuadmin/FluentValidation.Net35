@@ -5,13 +5,16 @@ In some situations, you may wish to define asynchronous rules, for example when 
 A simplistic solution that checks if a user ID is already in use using an external web API:
 
 ```csharp
-public class CustomerValidator : AbstractValidator<Customer> {
+public class CustomerValidator : AbstractValidator<Customer> 
+{
   SomeExternalWebApiClient _client;
 
-  public CustomerValidator(SomeExternalWebApiClient client) {
+  public CustomerValidator(SomeExternalWebApiClient client) 
+  {
     _client = client;
 
-    RuleFor(x => x.Id).MustAsync(async (id, cancellation) => {
+    RuleFor(x => x.Id).MustAsync(async (id, cancellation) => 
+    {
       bool exists = await _client.IdExists(id);
       return !exists;
     }).WithMessage("ID Must be unique");
@@ -28,7 +31,7 @@ var result = await validator.ValidateAsync(customer);
 
 ```eval_rst
 .. warning::
-  If your validator contains asynchronous validators or asynchronous conditions, it's important that you *always* call `ValidateAsync` on your validator and never `Validate`. If you call `Validate`, then your asynchronous rules *will be run synchronously*, which is not desirable.
+  If your validator contains asynchronous validators or asynchronous conditions, it's important that you *always* call `ValidateAsync` on your validator and never `Validate`. If you call `Validate`, then an exception will be thrown.
 
-  You should not use asynchronous rules when `using automatic validation with ASP.NET <aspnet.html>`_ as ASP.NET's validation pipeline is not asynchronous. If you use asynchronous rules with ASP.NET's automatic validation, they will always be run synchronously.
+  You should not use asynchronous rules when `using automatic validation with ASP.NET <aspnet.html>`_ as ASP.NET's validation pipeline is not asynchronous. If you use asynchronous rules with ASP.NET's automatic validation, they will always be run synchronously (10.x and older) or throw an exception (11.x and newer).
 ```

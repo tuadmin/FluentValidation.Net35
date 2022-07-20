@@ -37,14 +37,8 @@ namespace FluentValidation.Internal {
 			_asyncPropertyValidator = asyncPropertyValidator;
 		}
 
-		public override IPropertyValidator Validator {
-			get {
-				if (_propertyValidator is ILegacyValidatorAdaptor l) {
-					return l.UnderlyingValidator;
-				}
-				return (IPropertyValidator) _propertyValidator ?? _asyncPropertyValidator;
-			}
-		}
+		public override IPropertyValidator Validator
+			=> (IPropertyValidator) _propertyValidator ?? _asyncPropertyValidator;
 
 		private protected override bool SupportsAsynchronousValidation
 			=> _asyncPropertyValidator != null;
@@ -52,12 +46,12 @@ namespace FluentValidation.Internal {
 		private protected override bool SupportsSynchronousValidation
 			=> _propertyValidator != null;
 
-		internal override bool Validate(ValidationContext<T> context, TProperty? value) {
+		private protected override bool InvokePropertyValidator(ValidationContext<T> context, TProperty? value) {
 			if (!value.HasValue) return true;
 			return _propertyValidator.IsValid(context, value.Value);
 		}
 
-		internal override async Task<bool> ValidateAsync(ValidationContext<T> context, TProperty? value, CancellationToken cancellation) {
+		private protected override async Task<bool> InvokePropertyValidatorAsync(ValidationContext<T> context, TProperty? value, CancellationToken cancellation) {
 			if (!value.HasValue) return true;
 			return await _asyncPropertyValidator.IsValidAsync(context, value.Value, cancellation);
 		}

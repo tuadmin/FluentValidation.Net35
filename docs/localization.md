@@ -19,8 +19,10 @@ The above 2 examples assume you're using a strongly-typed wrapper around a resou
 If you are using `IStringLocalizer` to handle localization then all you need to do is inject your localizer into your validator, and use it within a `WithMessage` callback, for example:
 
 ```csharp
-public class PersonValidator : AbstractValidator<Person> {
-  public PersonValidator(IStringLocalizer<Person> localizer) {
+public class PersonValidator : AbstractValidator<Person> 
+{
+  public PersonValidator(IStringLocalizer<Person> localizer)
+   {
     RuleFor(x => x.Surname).NotNull().WithMessage(x => localizer["Surname is required"]);
   }
 }
@@ -32,8 +34,10 @@ If you want to replace all (or some) of FluentValidation's default messages then
 For example, the default message for the `NotNull` validator is `'{PropertyName}' must not be empty.`. If you wanted to replace this message for all uses of the `NotNull` validator in your application, you could write a custom Language Manager:
 
 ```csharp
-public class CustomLanguageManager : FluentValidation.Resources.LanguageManager {
-  public CustomLanguageManager() {
+public class CustomLanguageManager : FluentValidation.Resources.LanguageManager
+{
+  public CustomLanguageManager() 
+  {
     AddTranslation("en", "NotNullValidator", "'{PropertyName}' is required.");
     AddTranslation("en-US", "NotNullValidator", "'{PropertyName}' is required.");
     AddTranslation("en-GB", "NotNullValidator", "'{PropertyName}' is required.");
@@ -56,7 +60,7 @@ This is a simple example that only replaces one validator's message in English o
 Of course, if all you want to do is replace this message for a single use of a validator, then you could just use `WithMessage("'{PropertyName}' is required");`
 
 ### Contributing Languages
-If you'd like to contribute a translation of FluentValidation's default messages, then I'd be very grateful! Please open a pull request that adds a language file to the project and I'll happily merge it in. The current language files are [located in the GitHub repository](https://github.com/JeremySkinner/FluentValidation/tree/master/src/FluentValidation/Resources/Languages).
+If you'd like to contribute a translation of FluentValidation's default messages, please open a pull request that adds a language file to the project. The current language files are [located in the GitHub repository](https://github.com/JeremySkinner/FluentValidation/tree/master/src/FluentValidation/Resources/Languages). Additionally you'll need to [add the new language to the default LanguageManager](https://github.com/FluentValidation/FluentValidation/blob/main/src/FluentValidation/Resources/LanguageManager.cs#L38) 
 
 [The default English messages are stored here](https://github.com/JeremySkinner/FluentValidation/blob/master/src/FluentValidation/Resources/Languages/EnglishLanguage.cs)
 

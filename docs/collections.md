@@ -5,14 +5,17 @@
 You can use the `RuleForEach` method to apply the same rule to multiple items in a collection:
 
 ```csharp
-public class Person {
+public class Person 
+{
   public List<string> AddressLines { get; set; } = new List<string>();
 }
 ```
 
 ```csharp
-public class PersonValidator : AbstractValidator<Person> {
-  public PersonValidator() {
+public class PersonValidator : AbstractValidator<Person> 
+{
+  public PersonValidator() 
+  {
     RuleForEach(x => x.AddressLines).NotNull();
   }
 }
@@ -23,8 +26,10 @@ The above rule will run a NotNull check against each item in the `AddressLines` 
 As of version 8.5, if you want to access the index of the collection element that caused the validation failure, you can use the special `{CollectionIndex}` placeholder:
 
 ```csharp
-public class PersonValidator : AbstractValidator<Person> {
-  public PersonValidator() {
+public class PersonValidator : AbstractValidator<Person> 
+{
+  public PersonValidator() 
+  {
     RuleForEach(x => x.AddressLines).NotNull().WithMessage("Address {CollectionIndex} is required.");
   }
 }
@@ -35,24 +40,30 @@ public class PersonValidator : AbstractValidator<Person> {
 You can also combine `RuleForEach` with `SetValidator` when the collection is of another complex objects. For example:
 
 ```csharp
-public class Customer {
+public class Customer 
+{
   public List<Order> Orders { get; set; } = new List<Order>();
 }
 
-public class Order {
+public class Order 
+{
   public double Total { get; set; }
 }
 ```
 
 ```csharp
-public class OrderValidator : AbstractValidator<Order> {
-  public OrderValidator() {
+public class OrderValidator : AbstractValidator<Order> 
+{
+  public OrderValidator() 
+  {
     RuleFor(x => x.Total).GreaterThan(0);
   }
 }
 
-public class CustomerValidator : AbstractValidator<Customer> {
-  public CustomerValidator() {
+public class CustomerValidator : AbstractValidator<Customer> 
+{
+  public CustomerValidator() 
+  {
     RuleForEach(x => x.Orders).SetValidator(new OrderValidator());
   }
 }
@@ -61,9 +72,12 @@ public class CustomerValidator : AbstractValidator<Customer> {
 Alternatively, as of FluentValidation 8.5, you can also define rules for child collection elements in-line using the `ChildRules` method:
 
 ```csharp
-public class CustomerValidator : AbstractValidator<Customer> {
-  public CustomerValidator() {
-    RuleForEach(x => x.Orders).ChildRules(orders => {
+public class CustomerValidator : AbstractValidator<Customer> 
+{
+  public CustomerValidator() 
+  {
+    RuleForEach(x => x.Orders).ChildRules(orders => 
+    {
       orders.RuleFor(x => x.Total).GreaterThan(0);
     });
   }
@@ -95,14 +109,10 @@ The above 2 rules could be re-written as:
 ```csharp
 RuleFor(x => x.Orders)
   .Must(x => x.Count <= 10).WithMessage("No more than 10 orders are allowed")
-  .ForEach(orderRule => {
+  .ForEach(orderRule => 
+  {
     orderRule.Must(order => order.Total > 0).WithMessage("Orders must have a total of more than 0")
   });
 ```
 
-I personally think that using 2 rules is clearer and easier to read, but the option of combining them is available with the `ForEach` method.
-
-```eval_rst
-.. note::
-  Automatic Registration for validators will only work for `AbstractValidators` implementing a concrete type like `List` or `Array`. Implementations with interface types like `IEnumerable` or `IList` may be used, but the validator will need to be specifically registered as a scoped service in your app's Startup class. This is due to the ASP.NET's Model-Binding of collection types where interfaces like `IEnumerable` will be converted to a `List` implementation and a `List` is the type MVC passes to FluentValidation.
-```
+We recommend using 2 separate rules as this is clearer and easier to read, but the option of combining them is available with the `ForEach` method.

@@ -35,7 +35,6 @@ namespace FluentValidation.Tests {
 
 		public ValidatorTesterTester() {
 			validator = new TestValidator();
-			validator.RuleFor(x => x.CreditCard).Must(creditCard => !string.IsNullOrEmpty(creditCard)).WhenAsync((x, cancel) => Task.Run(() => { return x.Age >= 18; }));
 			validator.RuleFor(x => x.Forename).NotNull();
 			validator.RuleForEach(person => person.NickNames).MinimumLength(5);
 			CultureScope.SetDefaultCulture();
@@ -227,9 +226,7 @@ namespace FluentValidation.Tests {
 			});
 			testValidator.RuleFor(x => x.Id).NotEqual(0);
 
-#pragma warning disable 618
-			var assertionRoot = testValidator.TestValidate(new Person(), "Names");
-#pragma warning restore 618
+			var assertionRoot = testValidator.TestValidate(new Person(), opt => opt.IncludeRuleSets("Names"));
 
 			assertionRoot.ShouldHaveValidationErrorFor(x => x.Forename)
 				.WithErrorCode("NotNullValidator");
@@ -348,122 +345,72 @@ namespace FluentValidation.Tests {
 
 		[Fact]
 		public void Expected_message_check() {
-			bool exceptionCaught = false;
+			var validator = new InlineValidator<Person> {
+				v => v.RuleFor(x => x.Surname).NotNull().WithMessage("bar")
+			};
 
-			try {
-				var validator = new InlineValidator<Person> {
-					v => v.RuleFor(x => x.Surname).NotNull().WithMessage("bar")
-				};
+			var ex = Assert.Throws<ValidationTestException>(() =>
 				validator.TestValidate(new Person())
 					.ShouldHaveValidationErrorFor(x => x.Surname)
-					.WithErrorMessage("foo");
-			}
-			catch (ValidationTestException e) {
-				exceptionCaught = true;
-
-				e.Message.ShouldEqual("Expected an error message of 'foo'. Actual message was 'bar'");
-			}
-
-			exceptionCaught.ShouldBeTrue();
+					.WithErrorMessage("foo"));
+			ex.Message.ShouldEqual("Expected an error message of 'foo'. Actual message was 'bar'");
 		}
 
-		/// <summary>
-		/// Full test (for WhenAll)
-		/// </summary>
-		/// <param name="withoutErrMsg"></param>
-		/// <param name="errMessages"></param>
-		/// <param name="shouldBe"></param>
 		[Theory]
-		[InlineData("bar", new string[] { })]
-		[InlineData("bar", new string[] { "foo", })]
 		[InlineData("bar", new string[] { "foo", "bar" })]
 		[InlineData("bar", new string[] { "bar", })]
 		public void Unexpected_message_check(string withoutErrMsg, string[] errMessages) {
-			bool exceptionCaught = false;
-
-			try {
-				var validator = new InlineValidator<Person>();
-				foreach (var msg in errMessages) {
-					validator.Add(v => v.RuleFor(x => x.Surname).NotNull().WithMessage(msg));
-				}
-
-				validator.TestValidate(new Person { }).Errors.WithoutErrorMessage(withoutErrMsg);
-			}
-			catch (ValidationTestException e) {
-				exceptionCaught = true;
-
-				e.Message.ShouldEqual($"Found an unexpected error message of '{withoutErrMsg}'");
+			var validator = new InlineValidator<Person>();
+			foreach (var msg in errMessages) {
+				validator.Add(v => v.RuleFor(x => x.Surname).NotNull().WithMessage(msg));
 			}
 
-			exceptionCaught.ShouldEqual(errMessages.Contains(withoutErrMsg));
+			var ex = Assert.Throws<ValidationTestException>(() =>
+				validator.TestValidate(new Person { }).ShouldHaveAnyValidationError().WithoutErrorMessage(withoutErrMsg));
+			ex.Message.ShouldEqual($"Found an unexpected error message of '{withoutErrMsg}'");
 		}
 
 		[Fact]
 		public void Expected_message_argument_check() {
-			bool exceptionCaught = false;
-
-			try {
-				var validator = new InlineValidator<Person> {
-					v => v.RuleFor(x => x.Surname)
-						.Must((x, y, context) => {
-							context.MessageFormatter.AppendArgument("Foo", "bar");
-							return false;
-						})
-						.WithMessage("{Foo}")
+			var validator = new InlineValidator<Person> {
+				v => v.RuleFor(x => x.Surname)
+					.Must((x, y, context) => {
+						context.MessageFormatter.AppendArgument("Foo", "bar");
+						return false;
+					})
+					.WithMessage("{Foo}")
 				};
+			var ex = Assert.Throws<ValidationTestException>(() =>
 				validator.TestValidate(new Person())
 					.ShouldHaveValidationErrorFor(x => x.Surname)
-					.WithMessageArgument("Foo", "foo");
-			}
-			catch (ValidationTestException e) {
-				exceptionCaught = true;
-				e.Message.ShouldEqual("Expected message argument 'Foo' with value 'foo'. Actual value was 'bar'");
-			}
-
-			exceptionCaught.ShouldBeTrue();
+					.WithMessageArgument("Foo", "foo")
+			);
+			ex.Message.ShouldEqual("Expected message argument 'Foo' with value 'foo'. Actual value was 'bar'");
 		}
 
 		[Fact]
 		public void Expected_state_check() {
-			bool exceptionCaught = false;
-
-			try {
-				var validator = new InlineValidator<Person> {
-					v => v.RuleFor(x => x.Surname).NotNull().WithState(x => "bar")
-				};
+			var validator = new InlineValidator<Person> {
+				v => v.RuleFor(x => x.Surname).NotNull().WithState(x => "bar")
+			};
+			var ex = Assert.Throws<ValidationTestException>(() =>
 				validator.TestValidate(new Person())
 					.ShouldHaveValidationErrorFor(x => x.Surname)
-					.WithCustomState("foo");
-			}
-			catch (ValidationTestException e) {
-				exceptionCaught = true;
-
-				e.Message.ShouldEqual("Expected custom state of 'foo'. Actual state was 'bar'");
-			}
-
-			exceptionCaught.ShouldBeTrue();
+					.WithCustomState("foo"));
+			ex.Message.ShouldEqual("Expected custom state of 'foo'. Actual state was 'bar'");
 		}
 
 		[Fact]
 		public void Unexpected_state_check() {
-			bool exceptionCaught = false;
-
-			try {
-				var validator = new InlineValidator<Person> {
-					v => v.RuleFor(x => x.Surname).NotNull().WithState(x => "bar"),
-					v => v.RuleFor(x => x.Surname).NotNull().WithState(x => "foo"),
-				};
+			var validator = new InlineValidator<Person> {
+				v => v.RuleFor(x => x.Surname).NotNull().WithState(x => "bar"),
+				v => v.RuleFor(x => x.Surname).NotNull().WithState(x => "foo"),
+			};
+			var ex = Assert.Throws<ValidationTestException>(() =>
 				validator.TestValidate(new Person())
 					.ShouldHaveValidationErrorFor(x => x.Surname)
-					.WithoutCustomState("bar");
-			}
-			catch (ValidationTestException e) {
-				exceptionCaught = true;
-
-				e.Message.ShouldEqual("Found an unexpected custom state of 'bar'");
-			}
-
-			exceptionCaught.ShouldBeTrue();
+					.WithoutCustomState("bar"));
+			ex.Message.ShouldEqual("Found an unexpected custom state of 'bar'");
 		}
 
 		[Fact]
@@ -502,100 +449,126 @@ namespace FluentValidation.Tests {
 
 		[Fact]
 		public void Expected_error_code_check() {
-			bool exceptionCaught = false;
-
-			try {
-				var validator = new InlineValidator<Person> {
-					v => v.RuleFor(x => x.Surname).NotNull().WithErrorCode("bar")
-				};
+			var validator = new InlineValidator<Person> {
+				v => v.RuleFor(x => x.Surname).NotNull().WithErrorCode("bar")
+			};
+			var ex = Assert.Throws<ValidationTestException>(() =>
 				validator.TestValidate(new Person())
 					.ShouldHaveValidationErrorFor(x => x.Surname)
-					.WithErrorCode("foo");
-			}
-			catch (ValidationTestException e) {
-				exceptionCaught = true;
-
-				e.Message.ShouldEqual("Expected an error code of 'foo'. Actual error code was 'bar'");
-			}
-
-			exceptionCaught.ShouldBeTrue();
+					.WithErrorCode("foo"));
+			ex.Message.ShouldEqual("Expected an error code of 'foo'. Actual error code was 'bar'");
 		}
 
 		[Fact]
 		public void Unexpected_error_code_check() {
-			bool exceptionCaught = false;
-
-			try {
-				var validator = new InlineValidator<Person> {
-					v => v.RuleFor(x => x.Surname).NotNull().WithErrorCode("bar"),
-					v => v.RuleFor(x => x.Surname).NotNull().WithErrorCode("foo")
-				};
+			var validator = new InlineValidator<Person> {
+				v => v.RuleFor(x => x.Surname).NotNull().WithErrorCode("bar"),
+				v => v.RuleFor(x => x.Surname).NotNull().WithErrorCode("foo")
+			};
+			var ex = Assert.Throws<ValidationTestException>(() =>
 				validator.TestValidate(new Person())
 					.ShouldHaveValidationErrorFor(x => x.Surname)
-					.WithoutErrorCode("bar");
-			}
-			catch (ValidationTestException e) {
-				exceptionCaught = true;
+					.WithoutErrorCode("bar"));
+				ex.Message.ShouldEqual("Found an unexpected error code of 'bar'");
+		}
 
-				e.Message.ShouldEqual("Found an unexpected error code of 'bar'");
-			}
+		[Fact]
+		public void Expected_without_error_code_check() {
+			//#1937
+			var validator = new InlineValidator<Person> {
+				v => v.RuleFor(x => x.Surname).NotNull(),
+				v => v.RuleFor(x => x.Forename).NotNull()
+			};
 
-			exceptionCaught.ShouldBeTrue();
+			validator.TestValidate(new Person())
+				.ShouldHaveValidationErrorFor(x => x.Surname)
+				.WithoutErrorCode("foo")
+				.WithoutErrorMessage("bar")
+				.WithoutSeverity(Severity.Warning)
+				.WithoutCustomState(1);
+		}
+
+		[Fact]
+		public void Unexpected_with_error_message_check() {
+			//#1937
+			var validator = new InlineValidator<Person>
+			{
+				v => v.RuleFor(x => x.Forename).NotEmpty(),
+				v => v.RuleFor(x => x.Surname).NotEmpty()
+			};
+
+			var ex = Assert.Throws<ValidationTestException>(() =>
+				validator.TestValidate(new Person())
+					.ShouldHaveValidationErrorFor(x => x.Surname)
+					.WithErrorMessage("bar"));
+			ex.Message.ShouldEqual("Expected an error message of 'bar'. Actual message was ''Surname' must not be empty.'");
+		}
+
+		[Fact]
+		public void Expected_with_error_code_check() {
+			var validator = new InlineValidator<Person> {
+				v => v.RuleFor(x => x.Forename).NotNull(),
+				v => v.RuleFor(x => x.Surname).NotNull()
+					.WithErrorCode("foo")
+					.WithMessage("bar")
+					.WithSeverity(Severity.Warning)
+					.WithState(_ => 1)
+			};
+
+			validator.TestValidate(new Person())
+				.ShouldHaveValidationErrorFor(x => x.Surname)
+				.WithErrorCode("foo")
+				.WithErrorMessage("bar")
+				.WithSeverity(Severity.Warning)
+				.WithCustomState(1);
 		}
 
 		[Fact]
 		public void Expected_severity_check() {
-			bool exceptionCaught = false;
+			var validator = new InlineValidator<Person> {
+				v => v.RuleFor(x => x.Surname).NotNull().WithSeverity(Severity.Warning)
+			};
 
-			try {
-				var validator = new InlineValidator<Person> {
-					v => v.RuleFor(x => x.Surname).NotNull().WithSeverity(Severity.Warning)
-				};
+			var ex = Assert.Throws<ValidationTestException>(() =>
 				validator.TestValidate(new Person())
 					.ShouldHaveValidationErrorFor(x => x.Surname)
-					.WithSeverity(Severity.Error);
-			}
-			catch (ValidationTestException e) {
-				exceptionCaught = true;
+					.WithSeverity(Severity.Error));
 
-				e.Message.ShouldEqual($"Expected a severity of '{nameof(Severity.Error)}'. Actual severity was '{nameof(Severity.Warning)}'");
-			}
-
-			exceptionCaught.ShouldBeTrue();
+			ex.Message.ShouldEqual($"Expected a severity of '{nameof(Severity.Error)}'. Actual severity was '{nameof(Severity.Warning)}'");
 		}
 
 		[Fact]
 		public void Unexpected_severity_check() {
-			bool exceptionCaught = false;
-
-			try {
-				var validator = new InlineValidator<Person> {
-					v => v.RuleFor(x => x.Surname).NotNull().WithSeverity(Severity.Warning),
-					v => v.RuleFor(x => x.Surname).NotNull().WithSeverity(Severity.Error),
-				};
+			var validator = new InlineValidator<Person> {
+				v => v.RuleFor(x => x.Surname).NotNull().WithSeverity(Severity.Warning),
+				v => v.RuleFor(x => x.Surname).NotNull().WithSeverity(Severity.Error),
+			};
+			var ex = Assert.Throws<ValidationTestException>(() =>
 				validator.TestValidate(new Person())
 					.ShouldHaveValidationErrorFor(x => x.Surname)
-					.WithoutSeverity(Severity.Warning);
-			}
-			catch (ValidationTestException e) {
-				exceptionCaught = true;
+					.WithoutSeverity(Severity.Warning));
 
-				e.Message.ShouldEqual($"Found an unexpected severity of '{nameof(Severity.Warning)}'");
-			}
-
-			exceptionCaught.ShouldBeTrue();
+			ex.Message.ShouldEqual($"Found an unexpected severity of '{nameof(Severity.Warning)}'");
 		}
 
 		[Theory]
 		[InlineData(42, null)]
 		[InlineData(42, "")]
-		public void ShouldHaveValidationError_should_not_throw_when_there_are_validation_errors__WhenAsyn_is_used(int age, string cardNumber) {
+		public async Task ShouldHaveValidationError_should_not_throw_when_there_are_validation_errors__WhenAsyn_is_used(int age, string cardNumber) {
 			Person testPerson = new Person() {
 				CreditCard = cardNumber,
 				Age = age
 			};
 
-			validator.TestValidate(testPerson).ShouldHaveValidationErrorFor(x => x.CreditCard);
+			validator.RuleFor(x => x.CreditCard)
+				.Must(creditCard => !string.IsNullOrEmpty(creditCard))
+				.WhenAsync((x, cancel) => Task.FromResult(x.Age >= 18));
+
+			// Throws when called sync.
+			Assert.Throws<AsyncValidatorInvokedSynchronouslyException>(() =>
+				validator.TestValidate(testPerson).ShouldHaveValidationErrorFor(x => x.CreditCard));
+
+			(await validator.TestValidateAsync(testPerson)).ShouldHaveValidationErrorFor(x => x.CreditCard);
 		}
 
 		[Theory]
@@ -630,13 +603,22 @@ namespace FluentValidation.Tests {
 		[Theory]
 		[InlineData(42, null)]
 		[InlineData(42, "")]
-		public void ShouldNotHaveValidationError_should_throw_when_there_are_validation_errors__WhenAsyn_is_used(int age, string cardNumber) {
+		public async Task ShouldNotHaveValidationError_should_throw_when_there_are_validation_errors__WhenAsyn_is_used(int age, string cardNumber) {
 			Person testPerson = new Person() {
 				CreditCard = cardNumber,
 				Age = age
 			};
 
-			Assert.Throws<ValidationTestException>(() => validator.TestValidate(testPerson).ShouldNotHaveValidationErrorFor(x => x.CreditCard));
+			validator.RuleFor(x => x.CreditCard)
+				.Must(creditCard => !string.IsNullOrEmpty(creditCard))
+				.WhenAsync((x, cancel) => Task.FromResult(x.Age >= 18));
+
+			// Throws async exception when invoked synchronously
+			Assert.Throws<AsyncValidatorInvokedSynchronouslyException>(() => validator.TestValidate(testPerson).ShouldNotHaveValidationErrorFor(x => x.CreditCard));
+
+			// Executes normally when run async.
+			await Assert.ThrowsAsync<ValidationTestException>(async () =>
+				(await validator.TestValidateAsync(testPerson)).ShouldNotHaveValidationErrorFor(x => x.CreditCard));
 		}
 
 		[Fact]
@@ -705,17 +687,8 @@ namespace FluentValidation.Tests {
 			validator.RuleFor(x => x.Surname).Must(x => false);
 
 			var result = validator.TestValidate(new Person());
-
-			bool thrown = false;
-			try {
-				result.ShouldHaveValidationErrorFor(x => x);
-				result.ShouldHaveValidationErrorFor("");
-			}
-			catch (ValidationTestException) {
-				thrown = true;
-			}
-
-			thrown.ShouldBeFalse();
+			result.ShouldHaveValidationErrorFor(x => x);
+			result.ShouldHaveValidationErrorFor("");
 		}
 
 		[Fact]
@@ -822,6 +795,163 @@ namespace FluentValidation.Tests {
 			await Assert.ThrowsAsync<ValidationTestException>(async () => {
 				(await validator.TestValidateAsync(new Person())).ShouldNotHaveValidationErrorFor(x => x.Surname);
 			});
+		}
+
+		[Fact]
+		public void ShouldHaveValidationErrorFor_Only() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname).Must((x, ct) => false);
+			validator.TestValidate(new Person())
+				.ShouldHaveValidationErrorFor(x => x.Surname)
+				.Only();
+		}
+
+		[Fact]
+		public void ShouldHaveValidationErrorFor_Only_throws() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname).Must((x, ct) => false);
+			validator.RuleFor(x => x.Age).Must((x, ct) => false);
+			Assert.Throws<ValidationTestException>(() =>
+				validator.TestValidate(new Person())
+					.ShouldHaveValidationErrorFor(x => x.Surname)
+					.Only()
+			).Message.ShouldEqual("Expected to have errors only matching specified conditions\n----\nUnexpected Errors:\n[0]: The specified condition was not met for 'Age'.\n");
+		}
+
+		[Fact]
+		public async Task ShouldHaveValidationErrorFor_Only_async() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(false));
+			(await validator.TestValidateAsync(new Person()))
+				.ShouldHaveValidationErrorFor(x => x.Surname)
+				.Only();
+		}
+
+		[Fact]
+		public async Task ShouldHaveValidationErrorFor_Only_async_throws() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname).MustAsync((x, ct) => Task.FromResult(false));
+			validator.RuleFor(x => x.Age).MustAsync((x, ct) => Task.FromResult(false));
+			(await Assert.ThrowsAsync<ValidationTestException>(async () => {
+				(await validator.TestValidateAsync(new Person()))
+					.ShouldHaveValidationErrorFor(x => x.Surname)
+					.Only();
+			})).Message.ShouldEqual("Expected to have errors only matching specified conditions\n----\nUnexpected Errors:\n[0]: The specified condition was not met for 'Age'.\n");
+		}
+
+		[Fact]
+		public void ShouldHaveValidationErrorFor_WithMultipleRules_Only() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname)
+				.Must((x, ct) => false)
+				.NotEmpty();
+			validator.TestValidate(new Person())
+				.ShouldHaveValidationErrorFor(x => x.Surname)
+				.Only();
+		}
+
+		[Fact]
+		public void ShouldHaveValidationErrorFor_WithMessage_Only_throws() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname)
+				.Must((x, ct) => false)
+				.NotEmpty();
+			Assert.Throws<ValidationTestException>(() =>
+				validator.TestValidate(new Person())
+					.ShouldHaveValidationErrorFor(x => x.Surname)
+					.WithErrorMessage("The specified condition was not met for 'Surname'.")
+					.Only()
+			).Message.ShouldEqual("Expected to have errors only matching specified conditions\n----\nUnexpected Errors:\n[0]: 'Surname' must not be empty.\n");
+		}
+
+		[Fact]
+		public void ShouldHaveValidationErrorFor_WithMessage_Only() {
+			var validator = new InlineValidator<Person>();
+			var message = "Something's wrong but I won't tell you what";
+			validator.RuleFor(x => x.Surname)
+				.Must((x, ct) => false).WithMessage(message)
+				.NotEmpty().WithMessage(message);
+			validator.TestValidate(new Person())
+				.ShouldHaveValidationErrorFor(x => x.Surname)
+				.WithErrorMessage(message)
+				.Only();
+		}
+
+		[Fact]
+		public void ShouldHaveValidationErrorFor_WithSeverity_Only() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname)
+				.Must((x, ct) => false).WithSeverity(Severity.Warning)
+				.NotEmpty().WithSeverity(Severity.Warning);
+			validator.TestValidate(new Person())
+				.ShouldHaveValidationErrorFor(x => x.Surname)
+				.WithSeverity(Severity.Warning)
+				.Only();
+		}
+
+		[Fact]
+		public void ShouldHaveValidationErrorFor_WithSeverity_Only_throws() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname)
+				.Must((x, ct) => false).WithSeverity(Severity.Warning)
+				.NotEmpty();
+			Assert.Throws<ValidationTestException>(() =>
+				validator.TestValidate(new Person())
+					.ShouldHaveValidationErrorFor(x => x.Surname)
+					.WithSeverity(Severity.Warning)
+					.Only()
+			).Message.ShouldEqual("Expected to have errors only matching specified conditions\n----\nUnexpected Errors:\n[0]: 'Surname' must not be empty.\n");
+		}
+
+		[Fact]
+		public void ShouldHaveValidationErrorFor_WithErrorCode_Only() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname)
+				.Must((x, ct) => false).WithErrorCode("100")
+				.NotEmpty().WithErrorCode("100");
+			validator.TestValidate(new Person())
+				.ShouldHaveValidationErrorFor(x => x.Surname)
+				.WithErrorCode("100")
+				.Only();
+		}
+
+		[Fact]
+		public void ShouldHaveValidationErrorFor_WithErrorCode_Only_throws() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname)
+				.Must((x, ct) => false).WithErrorCode("100")
+				.NotEmpty().WithErrorCode("200");
+			Assert.Throws<ValidationTestException>(() =>
+				validator.TestValidate(new Person())
+					.ShouldHaveValidationErrorFor(x => x.Surname)
+					.WithErrorCode("100")
+					.Only()
+			).Message.ShouldEqual("Expected to have errors only matching specified conditions\n----\nUnexpected Errors:\n[0]: 'Surname' must not be empty.\n");
+		}
+
+		[Fact]
+		public void ShouldHaveValidationErrorFor_WithPropertyName_Only() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => DateTime.Now)
+				.Must((x, ct) => false);
+			validator.TestValidate(new Person())
+				.ShouldHaveValidationErrorFor("Now")
+				.WithErrorMessage("The specified condition was not met for 'Now'.")
+				.Only();
+		}
+
+		[Fact]
+		public void ShouldHaveValidationErrorFor_WithPropertyName_Only_throws() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => DateTime.Now)
+				.Must((x, ct) => false)
+				.LessThan(new DateTime(1900, 1, 1));
+			Assert.Throws<ValidationTestException>(() =>
+				validator.TestValidate(new Person())
+					.ShouldHaveValidationErrorFor("Now")
+					.WithErrorMessage("The specified condition was not met for 'Now'.")
+					.Only()
+			).Message.ShouldEqual("Expected to have errors only matching specified conditions\n----\nUnexpected Errors:\n[0]: 'Now' must be less than '1/1/1900 12:00:00 AM'.\n");
 		}
 
 		private class AddressValidator : AbstractValidator<Address> {

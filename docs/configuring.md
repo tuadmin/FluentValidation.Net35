@@ -25,6 +25,7 @@ These include the predicate validator (`Must` validator), the email and the rege
 
 Used in comparison validators: (`Equal`, `NotEqual`, `GreaterThan`, `GreaterThanOrEqual`, etc.)
 * `{ComparisonValue}` – Value that the property should be compared to
+* `{ComparisonProperty}` – Name of the property being compared against (if any)
 
 Used only in the Length validator:
 * `{MinLength}` – Minimum length
@@ -37,7 +38,7 @@ It is also possible to use your own custom arguments in the validation message. 
 
 ```csharp
 //Using constant in a custom message:
-RuleFor(customer => x.Surname)
+RuleFor(customer => customer.Surname)
   .NotNull()
   .WithMessage(customer => string.Format("This message references some constant values: {0} {1}", "hello", 5))
 //Result would be "This message references some constant values: hello 5"
@@ -71,11 +72,13 @@ If you want to completely rename the property, you can use the `OverrideProperty
 
 There is also an overload of `WithName` that accepts a lambda expression in a similar way to `WithMessage` in the previous section.
 
-Property name resolution is also pluggable. By default, the name of the property extracted from the `MemberExpression` passed to `RuleFor`. If you want change this logic, you can set the `DisplayNameResolver` property on the `ValidatorOptions` class:
+Property name resolution is also pluggable. By default, the name of the property extracted from the `MemberExpression` passed to `RuleFor`. If you want to change this logic, you can set the `DisplayNameResolver` property on the `ValidatorOptions` class:
 
 ```csharp
-ValidatorOptions.Global.DisplayNameResolver = (type, member, expression) => {
-  if(member != null) {
+ValidatorOptions.Global.DisplayNameResolver = (type, member, expression) => 
+{
+  if(member != null) 
+  {
      return member.Name + "Foo";
   }
   return null;

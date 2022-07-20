@@ -22,7 +22,6 @@ namespace FluentValidation.Internal {
 	using System;
 	using System.Threading;
 	using System.Threading.Tasks;
-	using Internal;
 	using Validators;
 
 	/// <summary>
@@ -47,9 +46,6 @@ namespace FluentValidation.Internal {
 			_propertyValidator = propertyValidator;
 		}
 
-		[Obsolete("The Options property will be removed in FluentValidation 11. All properties from Options should be accessed directly on this component instead.")]
-		public RuleComponent<T, TProperty> Options => this;
-
 		/// <inheritdoc />
 		public bool HasCondition => _condition != null;
 
@@ -57,14 +53,8 @@ namespace FluentValidation.Internal {
 		public bool HasAsyncCondition => _asyncCondition != null;
 
 		/// <inheritdoc />
-		public virtual IPropertyValidator Validator {
-			get {
-				if (_propertyValidator is ILegacyValidatorAdaptor l) {
-					return l.UnderlyingValidator;
-				}
-				return (IPropertyValidator) _propertyValidator ?? _asyncPropertyValidator;
-			}
-		}
+		public virtual IPropertyValidator Validator
+			=> (IPropertyValidator) _propertyValidator ?? _asyncPropertyValidator;
 
 		private protected virtual bool SupportsAsynchronousValidation
 			=> _asyncPropertyValidator != null;
@@ -72,32 +62,35 @@ namespace FluentValidation.Internal {
 		private protected virtual bool SupportsSynchronousValidation
 			=> _propertyValidator != null;
 
-		internal bool ShouldValidateAsynchronously(IValidationContext context) {
-			// If ValidateAsync has been invoked on the root validator, then always prefer
-			// the asynchronous property validator (if available).
-			if (context.IsAsync) {
+		internal async ValueTask<bool> ValidateAsync(ValidationContext<T> context, TProperty value, bool useAsync, CancellationToken cancellation) {
+			if (useAsync) {
+				// If ValidateAsync has been called on the root validator, then always prefer
+				// the asynchronous property validator (if available).
 				if (SupportsAsynchronousValidation) {
-					return true;
+					return await InvokePropertyValidatorAsync(context, value, cancellation);
 				}
 
-				// Fallback to sync if no async validator available.
-				return false;
+				// If it doesn't support Async validation, then this means
+				// the property validator is a Synchronous.
+				// We don't need to explicitly check SupportsSynchronousValidation.
+				return InvokePropertyValidator(context, value);
 			}
 
-			// If Validate has been invoked on the root validator, then always prefer
-			// the synchronous validator.
+			// If Validate has been called on the root validator, then always prefer
+			// the synchronous property validator.
 			if (SupportsSynchronousValidation) {
-				return false;
+				return InvokePropertyValidator(context, value);
 			}
 
-			// Fall back to sync-over-async if only an async validator is available.
-			return true;
+			// Root Validator invoked synchronously, but the property validator
+			// only supports asynchronous invocation.
+			throw new AsyncValidatorInvokedSynchronouslyException();
 		}
 
-		internal virtual bool Validate(ValidationContext<T> context, TProperty value)
+		private protected virtual bool InvokePropertyValidator(ValidationContext<T> context, TProperty value)
 			=> _propertyValidator.IsValid(context, value);
 
-		internal virtual Task<bool> ValidateAsync(ValidationContext<T> context, TProperty value, CancellationToken cancellation)
+		private protected virtual Task<bool> InvokePropertyValidatorAsync(ValidationContext<T> context, TProperty value, CancellationToken cancellation)
 			=> _asyncPropertyValidator.IsValidAsync(context, value, cancellation);
 
 		/// <summary>
@@ -215,9 +208,6 @@ namespace FluentValidation.Internal {
 			_errorMessage = errorMessage;
 			_errorMessageFactory = null;
 		}
-
-		[Obsolete("OnFailure callbacks are deprecated and will be removed in FluentValidation 11. Please use a custom validator instead.")]
-		public Action<T, ValidationContext<T>, TProperty, string> OnFailure { get; set; }
 	}
 
 }

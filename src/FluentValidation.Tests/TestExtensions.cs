@@ -16,65 +16,38 @@
 // The latest version of this file can be found at https://github.com/FluentValidation/FluentValidation
 #endregion
 
-namespace FluentValidation.Tests {
-	using System;
-	using System.Collections.Generic;
-	using System.Linq;
-	using Xunit;
-	using Results;
-	using Validators;
+namespace FluentValidation.Tests;
 
-	//Inspired by SpecUnit's SpecificationExtensions
-	//http://code.google.com/p/specunit-net/source/browse/trunk/src/SpecUnit/SpecificationExtensions.cs
-	public static class TestExtensions {
-		public static void ShouldEqual(this object actual, object expected) {
-			Assert.Equal(expected, actual);
-		}
+using Xunit;
 
-		public static void ShouldBeTheSameAs(this object actual, object expected) {
-			Assert.Same(expected, actual);
-		}
+//Inspired by SpecUnit's SpecificationExtensions
+//http://code.google.com/p/specunit-net/source/browse/trunk/src/SpecUnit/SpecificationExtensions.cs
+public static class TestExtensions {
+	public static void ShouldEqual(this object actual, object expected) {
+		Assert.Equal(expected, actual);
+	}
 
-		public static void ShouldBeNull(this object actual) {
-			Assert.Null(actual);
-		}
+	public static void ShouldBeTheSameAs(this object actual, object expected) {
+		Assert.Same(expected, actual);
+	}
 
-		public static void ShouldNotBeNull(this object actual) {
-			Assert.NotNull(actual);
-		}
+	public static void ShouldBeNull(this object actual) {
+		Assert.Null(actual);
+	}
 
-		public static void ShouldBeTrue(this bool b) {
-			Assert.True(b);
-		}
+	public static void ShouldNotBeNull(this object actual) {
+		Assert.NotNull(actual);
+	}
 
-		public static void ShouldBeTrue(this bool b, string msg) {
-			Assert.True(b, msg);
-		}
+	public static void ShouldBeTrue(this bool b) {
+		Assert.True(b);
+	}
 
-		public static void ShouldBeFalse(this bool b) {
-			Assert.False(b);
-		}
+	public static void ShouldBeTrue(this bool b, string msg) {
+		Assert.True(b, msg);
+	}
 
-		public static Exception ShouldBeThrownBy(this Type exceptionType,
-			Action code
-			)
-		{
-			return
-#if NET35
-				AssertEx
-#else
-				Assert
-#endif
-				.Throws(exceptionType, code);
-		}
-
-		public static T ShouldBe<T>(this object actual) {
-			Assert.IsType<T>(actual);
-			return (T)actual;
-		}
-
-		public static bool IsValid(this IEnumerable<ValidationFailure> errors) {
-			return errors.Count() == 0;
-		}
+	public static void ShouldBeFalse(this bool b) {
+		Assert.False(b);
 	}
 }

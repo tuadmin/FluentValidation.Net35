@@ -108,26 +108,11 @@ namespace FluentValidation {
 			return GetName(member.Name);
 		}
 
-				/// <summary>
-				/// Gets validators for a member
-				/// </summary>
-				/// <typeparam name="TValue"></typeparam>
-				/// <param name="accessor"></param>
-				/// <returns></returns>
-#pragma warning disable CS3002 // Return type is not CLS-compliant
-				public IEnumerable<(IPropertyValidator Validator, IRuleComponent Options)> GetValidatorsForMember<TValue>(MemberAccessor<T, TValue> accessor) {
-			return from rule in Rules
-				where Equals(rule.Member, accessor.Member)
-				from component in rule.Components
-				select (component.Validator, component);
-		}
-#pragma warning restore CS3002 // Return type is not CLS-compliant
-
-				/// <summary>
-				/// Gets rules grouped by ruleset
-				/// </summary>
-				/// <returns></returns>
-				public IEnumerable<RulesetMetadata> GetRulesByRuleset() {
+		/// <summary>
+		/// Gets rules grouped by ruleset
+		/// </summary>
+		/// <returns></returns>
+		public IEnumerable<RulesetMetadata> GetRulesByRuleset() {
 			var query = from rule in Rules
 						from ruleset in rule.RuleSets
 						group rule by ruleset

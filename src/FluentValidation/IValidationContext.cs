@@ -62,6 +62,12 @@ namespace FluentValidation {
 		/// Whether this context is async.
 		/// </summary>
 		bool IsAsync { get; }
+
+		/// <summary>
+		/// Whether the validator should throw an exception if validation fails.
+		/// The default is false.
+		/// </summary>
+		bool ThrowOnFailures { get; }
 	}
 
 	internal interface IHasFailures {
@@ -209,7 +215,9 @@ namespace FluentValidation {
 				return new ValidationContext<T>(instanceToValidate, context.PropertyChain, context.Selector, failures, ValidatorOptions.Global.MessageFormatterFactory()) {
 					IsChildContext = context.IsChildContext,
 					RootContextData = context.RootContextData,
-					_parentContext = context.ParentContext
+					ThrowOnFailures = context.ThrowOnFailures,
+					_parentContext = context.ParentContext,
+					IsAsync = context.IsAsync
 				};
 			}
 
@@ -219,7 +227,9 @@ namespace FluentValidation {
 				return new ValidationContext<T>(default, context.PropertyChain, context.Selector, failures, ValidatorOptions.Global.MessageFormatterFactory()) {
 					IsChildContext = context.IsChildContext,
 					RootContextData = context.RootContextData,
+					ThrowOnFailures = context.ThrowOnFailures,
 					_parentContext = context.ParentContext,
+					IsAsync = context.IsAsync
 				};
 			}
 

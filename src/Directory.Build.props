@@ -1,15 +1,15 @@
 <Project>
   <PropertyGroup>
-    <VersionPrefix>10.3.4</VersionPrefix>
+    <VersionPrefix>11.1.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <!-- Use CI build number as version suffix (if defined) -->
     <!--<VersionSuffix Condition="'$(GITHUB_RUN_NUMBER)'!=''">ci-$(GITHUB_RUN_NUMBER)</VersionSuffix>-->
     <Authors>Giuseppe Lippolis</Authors>
-    <LangVersion>7.3</LangVersion>
+    <LangVersion>latest</LangVersion>
     <NoWarn>$(NoWarn);1701;1702;1591</NoWarn>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <PackageProjectUrl>https://fluentvalidation.net</PackageProjectUrl>
-    <Copyright>Copyright (c) .NET Foundation and contributors 2008-2021</Copyright>
+    <Copyright>Copyright (c) Jeremy Skinner, .NET Foundation, and contributors 2008-2022</Copyright>
     <RepositoryUrl>https://github.com/workgroupengineering/FluentValidation.Net35</RepositoryUrl>
     <PackageIcon>fluent-validation-icon.png</PackageIcon>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
@@ -17,6 +17,7 @@
     <NeutralLanguage>en</NeutralLanguage>
     <AssemblyOriginatorKeyFile>$(MSBuildProjectDirectory)/../FluentValidation-Release.snk</AssemblyOriginatorKeyFile>
     <PackageOutputPath>$(MSBuildProjectDirectory)/../../.build/packages</PackageOutputPath>
+    <PackageValidationBaselineVersion>11.0.0</PackageValidationBaselineVersion>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
   </PropertyGroup>  
   <ItemGroup>

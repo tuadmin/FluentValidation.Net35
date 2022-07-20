@@ -27,8 +27,6 @@ namespace FluentValidation.Validators {
 
 		public string[] RuleSets { get; set; }
 
-		internal bool PassThroughParentContext { get; set; }
-
 		public ChildValidatorAdaptor(IValidator<TProperty> validator, Type validatorType) {
 			_validator = validator;
 			ValidatorType = validatorType;
@@ -51,7 +49,6 @@ namespace FluentValidation.Validators {
 			}
 
 			var newContext = CreateNewValidationContextForChildValidator(context, value);
-			var totalFailures = context.Failures.Count;
 
 			// If we're inside a collection with RuleForEach, then preserve the CollectionIndex placeholder
 			// and pass it down to child validator by caching it in the RootContextData which flows through to
@@ -77,7 +74,6 @@ namespace FluentValidation.Validators {
 			}
 
 			var newContext = CreateNewValidationContextForChildValidator(context, value);
-			var totalFailures = context.Failures.Count;
 
 			// If we're inside a collection with RuleForEach, then preserve the CollectionIndex placeholder
 			// and pass it down to child validator by caching it in the RootContextData which flows through to
@@ -99,7 +95,7 @@ namespace FluentValidation.Validators {
 
 		protected virtual IValidationContext CreateNewValidationContextForChildValidator(ValidationContext<T> context, TProperty value) {
 			var selector = GetSelector(context, value);
-			var newContext = context.CloneForChildValidator(value, PassThroughParentContext, selector);
+			var newContext = context.CloneForChildValidator(value, true, selector);
 
 			if(!context.IsChildCollectionContext)
 				newContext.PropertyChain.Add(context.RawPropertyName);

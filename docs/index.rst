@@ -8,31 +8,33 @@ FluentValidation
 
 FluentValidation is a .NET library for building strongly-typed validation rules.
 
-FluentValidation 10 supports the following platforms:
+FluentValidation 11 supports the following platforms:
 
 * .NET Core 3.1
 * .NET 5
+* .NET 6
 * `.NET Standard 2.0 <https://docs.microsoft.com/en-us/dotnet/standard/net-standard>`_
 
-For automatic validation with ASP.NET, FluentValidation supports ASP.NET running on .NET Core 3.1 or .NET 5
+For automatic validation with ASP.NET, FluentValidation supports ASP.NET running on .NET Core 3.1, .NET 5 or .NET 6.
 
 If you're new to using FluentValidation, check out the :doc:`start` page.
 
 .. note::
-  FluentValidation is developed and supported by `@JeremySkinner <https://github.com/JeremySkinner>`_
-  in his spare time. If you find FluentValidation useful, or if you use FluentValidation in a commercial environment, then
-  please consider financially supporting the project on one of the following platforms, which will help keep the project going.
-
-  * `GitHub sponsors <https://github.com/sponsors/JeremySkinner>`_
-  * `OpenCollective <https://opencollective.com/FluentValidation>`_
+  If you use FluentValidation in a commercial project, please
+  `sponsor the project financially <https://github.com/sponsors/JeremySkinner>`_. 
+  FluentValidation is developed for free by `@JeremySkinner <https://github.com/JeremySkinner>`_
+  in his spare time and financial sponsorship helps keep the project going. Please sponsor the project 
+  via either `GitHub sponsors <https://github.com/sponsors/JeremySkinner>`_ or `OpenCollective <https://opencollective.com/FluentValidation>`_.
 
 Example
 =======
 
 .. code-block:: c#
 
-   public class CustomerValidator : AbstractValidator<Customer> {
-     public CustomerValidator() {
+   public class CustomerValidator : AbstractValidator<Customer> 
+   {
+     public CustomerValidator()
+     {
        RuleFor(x => x.Surname).NotEmpty();
        RuleFor(x => x.Forename).NotEmpty().WithMessage("Please specify a first name");
        RuleFor(x => x.Discount).NotEqual(0).When(x => x.HasDiscount);
@@ -40,7 +42,8 @@ Example
        RuleFor(x => x.Postcode).Must(BeAValidPostcode).WithMessage("Please specify a valid postcode");
      }
 
-     private bool BeAValidPostcode(string postcode) {
+     private bool BeAValidPostcode(string postcode) 
+     {
        // custom postcode validating logic goes here
      }
    }
@@ -54,13 +57,6 @@ Example
   installation
   start
   collections
-  inheritance
-  rulesets
-  including-rules
-  di
-  upgrading-to-10
-  upgrading-to-9
-  upgrading-to-8
 
 .. _config-docs:
 .. toctree::
@@ -69,9 +65,6 @@ Example
 
   configuring
   conditions
-  severity
-  error-codes
-  custom-state
 
 .. _validator-docs:
 .. toctree::
@@ -80,6 +73,20 @@ Example
 
   built-in-validators
   custom-validators
+
+.. _feature-docs:
+.. toctree::
+  :maxdepth: 1
+  :caption: Other Features
+
+  including-rules
+  rulesets
+  cascade
+  di
+  async
+  severity
+  error-codes
+  custom-state
 
 .. _localization-docs:
 .. toctree::
@@ -95,6 +102,16 @@ Example
 
   testing
 
+.. _advanced-docs:
+.. toctree::
+  :maxdepth: 1
+  :caption: Advanced
+
+  dependentrules
+  inheritance
+  transform
+  advanced
+
 .. _aspnet-docs:
 .. toctree::
   :maxdepth: 1
@@ -103,11 +120,12 @@ Example
   aspnet
   blazor
 
-.. _advanced-docs:
+.. _upgrading-docs:
 .. toctree::
   :maxdepth: 1
-  :caption: Advanced
+  :caption: Upgrading
 
-  async
-  transform
-  advanced
+  upgrading-to-11
+  upgrading-to-10
+  upgrading-to-9
+  upgrading-to-8

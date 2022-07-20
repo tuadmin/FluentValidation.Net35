@@ -11,8 +11,10 @@ You can use the `TestValidate` extension method to invoke a validator for testin
 For example, imagine the following validator is defined:
 
 ```csharp
-public class PersonValidator : AbstractValidator<Person> {
-   public PersonValidator() {
+public class PersonValidator : AbstractValidator<Person> 
+{
+   public PersonValidator() 
+   {
       RuleFor(person => person.Name).NotNull();
    }
 }
@@ -26,23 +28,27 @@ using FluentValidation;
 using FluentValidation.TestHelper;
 
 [TestFixture]
-public class PersonValidatorTester {
+public class PersonValidatorTester 
+{
     private PersonValidator validator;
 
     [SetUp]
-    public void Setup() {
+    public void Setup()
+    {
        validator = new PersonValidator();
     }
 
     [Test]
-    public void Should_have_error_when_Name_is_null() {
+    public void Should_have_error_when_Name_is_null() 
+    {
       var model = new Person { Name = null };
       var result = validator.TestValidate(model);
       result.ShouldHaveValidationErrorFor(person => person.Name);
     }
 
     [Test]
-    public void Should_not_have_error_when_name_is_specified() {
+    public void Should_not_have_error_when_name_is_specified() 
+    {
       var model = new Person { Name = "Jeremy" };
       var result = validator.TestValidate(model);
       result.ShouldNotHaveValidationErrorFor(person => person.Name);
@@ -79,8 +85,50 @@ result.ShouldHaveValidationErrorFor(person => person.Name)
   .WithErrorCode("NotNullValidator");
 ```
 
-There are also inverse methods available (`WithoutMessage`, `WithoutErrorCode`, `WithoutSeverity`, `WithoutCustomState`)
+If you want to make sure no other validation failures occured, except specified by conditions, use method `Only` after the conditions:
+
+```csharp
+var result = validator.TestValidate(person);
+
+// Assert that failures only happened for Name property.
+result.ShouldHaveValidationErrorFor(person => person.Name).Only();
+
+// Assert that failures only happened for Name property and all have the specified message
+result.ShouldHaveValidationErrorFor(person => person.Name)
+  .WithErrorMessage("'Name' must not be empty.")
+  .Only();
+```
+
+There are also inverse methods available (`WithoutMessage`, `WithoutErrorCode`, `WithoutSeverity`, `WithoutCustomState`).
 
 ## Asynchronous TestValidate
 
 There is also an asynchronous `TestValidateAsync` method available which corresponds to the regular `ValidateAsync` method. Usage is similar, except the method returns an awaitable `Task` instead.
+
+# Mocking
+
+Validators are intended to be "black boxes" and we don't generally recommend mocking them. Within a test, the recommended appraoch is to supply a real validator instance with known bad data in order to trigger a validation error. 
+
+Mocking validators tends to require that you make assuptions about how the validators are built internally (both the rules contained within them, as well as FluentValidation's own internals). Mocking this behaviour leads to brittle tests that aren't upgrade-safe.
+
+However if you find yourself in a situation where you absoloutely do need to mock a validator, then we suggest using `InlineValidator<T>` to create a stub implementation as this way you can take advantage of re-using FluentValidation's own internal logic for creating validation failures. We *strongly* recommend not using a mocking library. An example of using `InlineValidator` is shown below:
+
+```csharp
+// Original validator that relies on an external service.
+// External service is used to check that the customer ID is not already used in the database.
+public class CustomerValidator : AbstractValidator<Customer> 
+{
+  public CustomerValidator(ICustomerRepository customerRepository) 
+  {
+    RuleFor(x => x.Id)
+      .Must(id => customerRepository.CheckIdNotInUse(id));
+  }
+}
+
+// If you needed to stub this failure in a unit/integration test, 
+// you could do the following:
+var validator = new InlineValidator<Customer>();
+validator.RuleFor(x => x.Id).Must(id => false); 
+
+// This instance could then be passed into anywhere expecting an IValidator<Customer>
+```

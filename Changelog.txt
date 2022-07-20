@@ -1,6 +1,47 @@
+11.1.0 - 22 June 2022
+Added a ToDictionary method to ValidationResult
+MVC auto validation: Deprecated Implicit validation of child properties (#1960)
+MVC auto validation: Deprecated Implicit validation of root collection elements (#1960)
+Deprecated InjectValidator (#1960)
+Deprecate validator factories (#1961)
+Introduce services.AddFluentValidationAutoValidation() and services.AddFluentValidationClientsideAdapters() as replacements for services.AddFluentValidation() (#1965)
+Remove duplication between sync and async validation in the internal model.
+
+11.0.3 - 10 June 2022
+Fix an issue where an exception would be thrown when calling ValidateAsync if a rule was wrapped with a call to WhenAsync. (#1955)
+
+11.0.2 - 27 May 2022
+Child validator contexts should contain a reference to their parent context (#1945)
+Support deserialization of ValidationResult using System.Text.Json (#1928)
+
+11.0.1 - 7 May 2022
+Fix regression in the Test Helper affecting the With* and Without* assertion methods (#1937)
+
+11.0.0 - 30 Apr 2022
+Ensure property covariance is properly handled throughout the internal model (#1713)
+Throw exceptions when async validator is invoked synchronously (#1705)
+Removal deprecated OnFailure/OnAnyFailure callbacks.
+Remove deprecated RunDefaultMvcValidationAfterFluentValidationExecutes option from ASP.NET integration.
+Remove deprecated Options property from RuleComponent.
+Remove deprecated TestHelper methods.
+Remove PropertyValidator backwards compatibility layer.
+Add method Only() asserting that no other validation errors were raised.
+
+10.4.0 - 11 Mar 2022
+Allow use of "*" with RuleSetForClientSideMessagesAttribute and HttpContext.SetRulesetForClientsideMessages (#1912)
+Fix Azerbaijani language code (#1874)
+
+10.3.6 - 13 Dec 2021
+Fix Azerbaijani language code (#1865)
+Setting DisableAutomaticValidation to true should prevent implicit validation running (#1868)
+Enable package validation (#1860)
+
+10.3.5 - 30 Nov 2021
+Fixed ThrowOnFailures not being passed through if context creation requires type conversion (#1863).
+
 10.3.4 - 22 Oct 2021
 Clientside messages shouldn't be generated for the lazy version of LessThanOrEqual/GreaterThanOrEqual (#1818)
-Remove enumable boxing in Empty/NotEmpty validators (#1823)
+Remove enumerable boxing in Empty/NotEmpty validators (#1823)
 
 10.3.3 - 24 Aug 2021
 Remove reference type constraint for TestValidate (#1815)

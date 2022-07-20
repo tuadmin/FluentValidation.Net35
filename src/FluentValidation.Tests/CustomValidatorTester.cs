@@ -159,7 +159,7 @@ namespace FluentValidation.Tests {
 		}
 
 		[Fact]
-		public void Runs_async_rule_synchronously_when_validator_invoked_synchronously() {
+		public void Throws_when_async_rule_invoked_synchronously() {
 			validator.RuleFor(x => x.Forename).CustomAsync((x, context, cancel) => {
 				context.AddFailure("foo");
 				return
@@ -169,8 +169,8 @@ namespace FluentValidation.Tests {
 					Task.CompletedTask;
 #endif
 			});
-			var result = validator.Validate(new Person());
-			result.Errors.Count.ShouldEqual(1);
+			Assert.Throws<AsyncValidatorInvokedSynchronouslyException>(() =>
+				validator.Validate(new Person()));
 		}
 
 		[Fact]

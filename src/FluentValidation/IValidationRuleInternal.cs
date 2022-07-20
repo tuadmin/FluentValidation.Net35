@@ -23,14 +23,12 @@ namespace FluentValidation {
 	using Internal;
 
 	internal interface IValidationRuleInternal<T> : IValidationRule<T> {
-		void Validate(ValidationContext<T> context);
-
-		Task ValidateAsync(ValidationContext<T> context, CancellationToken cancellation);
+		ValueTask ValidateAsync(ValidationContext<T> context, bool useAsync, CancellationToken cancellation);
 
 		void AddDependentRules(IEnumerable<IValidationRuleInternal<T>> rules);
 	}
 
-	internal interface IValidationRuleInternal<T, TProperty> : IValidationRule<T, TProperty>, IValidationRuleInternal<T>, IValidationRuleConfigurable<T,TProperty> {
+	internal interface IValidationRuleInternal<T, TProperty> : IValidationRule<T, TProperty>, IValidationRuleInternal<T> {
 		new List<RuleComponent<T,TProperty>> Components { get; }
 	}
 }
