@@ -1,3 +1,9 @@
+# For direct compile in Windows 10,11 only
+* download SDK https://dotnet.microsoft.com/en-us/download/dotnet/6.0
+* and run **BuildAndDeploy.cmd**
+* download nuget packages in directory ".\.build\packages"
+# Original
+
 <img src="https://raw.githubusercontent.com/FluentValidation/FluentValidation/gh-pages/assets/images/logo/fluent-validation-logo.png" alt="FluentValidation" width="250px" />
 
 [Full Documentation](https://fluentvalidation.net)
